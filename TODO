@@ -1,0 +1,23 @@
+☐ Skip
+☐ Tie -> alle sterben
+☐ Nach Spiel: Rollen
+
+☐ einladen
+
+
+Bugs:  
+  ✔ rc bei !start @done(20-12-31 20:38)
+
+Config:
+  ☐ ob min 1 werwolf
+  ☐ welche Rollen
+
+✔ nach spiel => wieder in lobby @done(21-01-02 23:35)
+
+Rollen:
+  ☐ Schlaflose
+  ✔ Dieb: Rolle sehen @done(21-01-03 00:49)
+
+Game als EventHandler:
+  ☐ ?
+
