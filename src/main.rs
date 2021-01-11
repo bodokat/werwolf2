@@ -7,19 +7,14 @@ use serenity::{
     model::channel::Message,
 };
 
-mod lobby;
-use lobby::*;
 mod controller;
 mod game;
+mod lobby;
 mod roles;
 
 #[group]
 #[commands(ping)]
 struct General;
-
-#[group]
-#[commands(join, start, players)]
-struct Lobby;
 
 #[hook]
 async fn before(_ctx: &Context, msg: &Message, command_name: &str) -> bool {
@@ -38,8 +33,7 @@ async fn main() {
     let framework = StandardFramework::new()
         .configure(|c| c.prefix("!"))
         .before(before)
-        .group(&GENERAL_GROUP)
-        .group(&LOBBY_GROUP);
+        .group(&GENERAL_GROUP);
 
     // Login with a bot token from the environment
     let token = std::env::var("TOKEN").expect("No Token in environment");
@@ -47,12 +41,6 @@ async fn main() {
         .framework(framework)
         .await
         .expect("Error creating client");
-
-    {
-        let mut data = client.data.write().await;
-
-        data.insert::<LobbyMap>(LobbyMap::new());
-    }
 
     if let Err(why) = client.start().await {
         println!("An error occurred while running the client: {:?}", why);

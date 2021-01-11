@@ -6,12 +6,17 @@ use serenity::{
     framework::standard::CommandResult,
     futures::stream::{FuturesUnordered, StreamExt},
     futures::FutureExt,
-    model::{channel::ReactionType, id::ChannelId, prelude::User},
+    model::{
+        channel::ReactionType,
+        id::{ChannelId, UserId},
+        prelude::User,
+    },
     prelude::*,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use tokio::sync::mpsc;
 
-use crate::{lobby::Lobby, roles::Role};
+use crate::{controller::ReactionAction, roles::Role};
 
 #[derive(Clone, Copy)]
 enum VoteResult<'a> {
@@ -21,7 +26,11 @@ enum VoteResult<'a> {
 
 pub struct Swap<'a>(pub &'a User, pub &'a User);
 
-pub async fn start_game(ctx: &Context, Lobby { players, .. }: &Lobby) -> CommandResult {
+pub async fn start_game(
+    ctx: &Context,
+    players: &HashSet<User>,
+    mut reaction_messenger: HashMap<UserId, mpsc::Receiver<ReactionAction>>,
+) -> CommandResult {
     let ctx = &ctx;
 
     let mut roles = vec![
