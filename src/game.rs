@@ -1,19 +1,17 @@
-use futures::future::{join_all, ready};
+use futures::{
+    future::{join_all, ready},
+    stream::FuturesOrdered,
+};
 use itertools::Itertools;
 use rand::{seq::SliceRandom, thread_rng};
 use serenity::{
     collector::ReactionCollectorBuilder,
     framework::standard::CommandResult,
     futures::stream::{FuturesUnordered, StreamExt},
-    futures::FutureExt,
-    model::{
-        channel::ReactionType,
-        id::{ChannelId, UserId},
-        prelude::User,
-    },
+    model::{channel::ReactionType, id::ChannelId, prelude::User},
     prelude::*,
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use tokio::sync::mpsc;
 
 use crate::{controller::ReactionAction, roles::Role};
@@ -28,25 +26,24 @@ pub struct Swap<'a>(pub &'a User, pub &'a User);
 
 pub async fn start_game(
     ctx: &Context,
-    players: &HashSet<User>,
-    mut reaction_messenger: HashMap<UserId, mpsc::Receiver<ReactionAction>>,
+    players: HashMap<&User, mpsc::Receiver<ReactionAction>>,
 ) -> CommandResult {
     let ctx = &ctx;
 
-    let mut roles = vec![
+    let mut player_roles = vec![
         Role::Werwolf,
         Role::Werwolf,
         Role::Dorfbewohner,
-        Role::Dieb,
         Role::Seherin,
+        Role::Dieb,
         Role::Unruhestifterin,
     ];
-    assert!(roles.len() >= players.len());
+    assert!(player_roles.len() >= players.len());
 
-    let roles_string = roles.iter().join(" | ");
+    let roles_string = player_roles.iter().join(" | ");
 
-    join_all(players.iter().map(|p| {
-        p.dm(ctx, |m| {
+    join_all(players.iter().map(|(player, _)| {
+        player.dm(ctx, |m| {
             m.content(format!("Die Rollen sind:\n{}", roles_string))
         })
     }))
@@ -54,18 +51,29 @@ pub async fn start_game(
 
     // guarantee that there is at least 1 werewolf
     // roles[1..].shuffle(&mut thread_rng());
-    roles.shuffle(&mut thread_rng());
+    // roles.shuffle(&mut thread_rng());
+    let indices = rand::seq::index::sample(
+        &mut thread_rng(),
+        player_roles.len(),
+        player_roles.len() - players.len(),
+    )
+    .into_iter();
+    let extra_roles: Vec<Role> = indices.map(|i| player_roles.remove(i)).collect();
+    let mut players = players.into_iter().collect::<Vec<_>>();
+    players.shuffle(&mut thread_rng());
 
-    let mut roles_iter = roles.into_iter();
+    let mut roles: HashMap<&User, Role> = HashMap::with_capacity(players.len());
 
-    let mut players: HashMap<&User, Role> = players
-        .iter()
-        .map(|user| (user, roles_iter.next().expect("not enough roles")))
-        .collect::<HashMap<_, _>>();
+    let players: Vec<(Role, &User, _)> = player_roles
+        .into_iter()
+        .map(|role| {
+            let (p, m) = players.pop().unwrap();
+            roles.insert(p, role);
+            (role, p, m)
+        })
+        .collect();
 
-    let extra_roles = roles_iter.collect::<Vec<_>>();
-
-    join_all(players.iter().map(|(&u, &role)| {
+    join_all(players.iter().map(|(role, u, _)| {
         u.dm(ctx, move |m| {
             m.content(format!("Deine Rolle ist: {}", role))
         })
@@ -74,59 +82,45 @@ pub async fn start_game(
 
     // --- Action
 
-    join_all(
-        players
-            .keys()
-            .map(|p| p.dm(ctx, |m| m.content("Game has started"))),
-    )
-    .await;
+    let mut final_roles = roles.clone();
 
-    let mut swaps: Vec<(Role, Swap)> = {
-        players
-            .iter()
-            .map(|(&player, role)| {
-                role.action(player, &players, &extra_roles, ctx)
-                    .map(move |swap| (role, swap))
-            })
-            .collect::<FuturesUnordered<_>>()
-            .map(|(role, s)| match s {
-                Ok(s) => (role, s),
-                Err(e) => {
-                    println!("Error: {}", e);
-                    (role, None)
-                }
-            })
-            .filter_map(|(&role, swap)| ready(swap.map(|s| (role, s))))
-            .collect::<Vec<_>>()
-            .await
-    };
-    swaps.sort_unstable_by_key(|&(x, _)| x);
-
-    let final_roles = players.clone();
-
-    for (_, Swap(u1, u2)) in swaps.iter() {
-        let a = players.get_mut(u1).unwrap() as *mut Role;
-        let b = players.get_mut(u2).unwrap() as *mut Role;
-        unsafe {
-            std::ptr::swap(a, b);
-        }
-    }
+    players
+        .iter()
+        // perform each role's action
+        .map(|(role, player, _)| role.action(player, &roles, &extra_roles, ctx))
+        .collect::<FuturesOrdered<_>>()
+        .filter_map(|s| {
+            ready(s.unwrap_or_else(|err| {
+                println!("Error: {}", err);
+                None
+            }))
+        })
+        .for_each(|Swap(u1, u2)| {
+            let a = final_roles.get_mut(u1).unwrap() as *mut Role;
+            let b = final_roles.get_mut(u2).unwrap() as *mut Role;
+            // SAFETY: the only reason why we can't call std::mem::swap is that we would have to borrow [roles] mutably twice
+            unsafe {
+                std::ptr::swap(a, b);
+            }
+            ready(())
+        })
+        .await;
 
     // --- Voting
 
     join_all(
-        players
+        roles
             .keys()
             .map(|p| p.dm(ctx, |m| m.content("Voting started"))),
     )
     .await;
 
-    let players = &players;
+    let players = &roles;
 
     let votes: HashMap<&User, u32> = players
         .keys()
         .map(|&player| async move {
-            select(
+            choice(
                 ctx,
                 player
                     .create_dm_channel(ctx)
@@ -143,7 +137,7 @@ pub async fn start_game(
         .filter_map(|x| ready(x))
         .fold(HashMap::new(), |mut acc: HashMap<&User, u32>, x| {
             *(acc.entry(x).or_insert(0)) += 1;
-            async move { acc }
+            ready(acc)
         })
         .await;
 
@@ -205,7 +199,7 @@ pub async fn start_game(
     Ok(())
 }
 
-pub async fn select<T, F, S: ToString>(
+pub async fn choice<T, F, S: ToString>(
     ctx: &Context,
     channel: ChannelId,
     choices: impl Iterator<Item = T>,

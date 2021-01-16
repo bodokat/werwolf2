@@ -3,14 +3,14 @@ use super::*;
 use rand::prelude::{thread_rng, IteratorRandom};
 
 pub async fn action<'a>(
-    user: &User,
+    player: &User,
     players: &HashMap<&User, Role>,
     extra_roles: &Vec<Role>,
     ctx: &Context,
 ) -> CommandResult<Option<Swap<'a>>> {
     let mut others = players
         .iter()
-        .filter(|(&other_user, &role)| role == Role::Werwolf && other_user != user);
+        .filter(|(&other_user, &role)| role == Role::Werwolf && other_user != player);
 
     let content = match others.next() {
         Some((x, _)) => format!(
@@ -28,6 +28,6 @@ pub async fn action<'a>(
         },
     };
 
-    user.dm(ctx, |m| m.content(content)).await?;
+    player.dm(ctx, |m| m.content(content)).await?;
     Ok(None)
 }

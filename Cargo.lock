@@ -1405,6 +1405,7 @@ dependencies = [
  "rand 0.8.0",
  "serenity",
  "tokio",
+ "tokio-stream",
 ]
 
 [[package]]

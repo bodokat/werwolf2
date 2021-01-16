@@ -1,16 +1,18 @@
 use super::*;
 
 pub async fn action<'a>(
-    user: &'a User,
+    player: &'a User,
     players: &HashMap<&'a User, Role>,
     ctx: &Context,
 ) -> CommandResult<Option<Swap<'a>>> {
-    user.dm(ctx, |m| m.content("Welche Spieler willst du tauschen?"))
+    player
+        .dm(ctx, |m| m.content("Welche Spieler willst du tauschen?"))
         .await?;
 
     let collector = ReactionCollectorBuilder::new(ctx)
         .channel_id(
-            user.create_dm_channel(ctx)
+            player
+                .create_dm_channel(ctx)
                 .await
                 .expect("error getting dm channel")
                 .id,
@@ -18,11 +20,11 @@ pub async fn action<'a>(
         .removed(true)
         .await;
 
-    let others = players.keys().filter(|&&u| u != user);
+    let others = players.keys().filter(|&&u| u != player);
 
     let messages = others
         .map(move |&u| async move {
-            let msg = user
+            let msg = player
                 .dm(ctx, |m| {
                     m.content(u.name.clone());
                     m.1 = Some(vec!['🔁'.into()]);

@@ -6,9 +6,10 @@ use tokio::sync::mpsc;
 
 use crate::{controller::ReactionAction, game::start_game};
 
-pub struct Lobby(pub mpsc::Sender<Message>);
+#[derive(Clone)]
+pub struct Lobby(pub mpsc::Sender<LobbyMessage>);
 
-pub enum Message {
+pub enum LobbyMessage {
     Reaction(ReactionAction),
     Join(User),
     Leave(User),
@@ -32,40 +33,40 @@ impl Lobby {
     }
 }
 
-async fn lobby_loop(ctx: Context, mut data: LobbyData, mut rc: mpsc::Receiver<Message>) {
-    'outer: while let Some(msg) = rc.recv().await {
+async fn lobby_loop(ctx: Context, mut data: LobbyData, mut rx: mpsc::Receiver<LobbyMessage>) {
+    'outer: while let Some(msg) = rx.recv().await {
         match msg {
-            Message::Reaction(_) => (),
-            Message::Join(u) => {
+            LobbyMessage::Reaction(_) => (),
+            LobbyMessage::Join(u) => {
                 data.players.insert(u);
             }
-            Message::Leave(u) => {
+            LobbyMessage::Leave(u) => {
                 data.players.remove(&u);
                 if data.players.is_empty() {
                     println!("Deleting Lobby (no more players)");
                     break;
                 }
             }
-            Message::Start => {
+            LobbyMessage::Start => {
                 let mut senders = HashMap::with_capacity(data.players.len());
                 let mut recievers = HashMap::with_capacity(data.players.len());
 
                 for user in data.players.iter() {
                     let (tx, rx) = mpsc::channel(32);
                     senders.insert(user.id, tx);
-                    recievers.insert(user.id, rx);
+                    recievers.insert(user, rx);
                 }
 
-                let game = start_game(&ctx, &data.players, recievers);
+                let game = start_game(&ctx, recievers);
                 pin_mut!(game);
                 loop {
-                    let rec = rc.recv();
+                    let rec = rx.recv();
                     pin_mut!(rec);
                     match select(&mut game, rec).await {
                         futures::future::Either::Left(_) => {
                             break;
                         }
-                        futures::future::Either::Right((Some(Message::Reaction(r)), _)) => {
+                        futures::future::Either::Right((Some(LobbyMessage::Reaction(r)), _)) => {
                             if let Some(sender) = r.inner().user_id.and_then(|id| senders.get(&id))
                             {
                                 let _ = sender.try_send(r);

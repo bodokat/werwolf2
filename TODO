@@ -1,12 +1,13 @@
-☐ Skip
-☐ Tie -> alle sterben
-☐ Nach Spiel: Rollen
+Gameplay:
+  ☐ Skip
+  ☐ Tie -> alle sterben
+  ☐ Nach Spiel: Rollen
 
 ☐ einladen
 
-
-Bugs:  
-  ✔ rc bei !start @done(20-12-31 20:38)
+Rollen:
+  ☐ Schlaflose
+  ✔ Dieb: Rolle sehen @done(21-01-03 00:49)
 
 Config:
   ☐ ob min 1 werwolf
@@ -14,10 +15,10 @@ Config:
 
 ✔ nach spiel => wieder in lobby @done(21-01-02 23:35)
 
-Rollen:
-  ☐ Schlaflose
-  ✔ Dieb: Rolle sehen @done(21-01-03 00:49)
+✔ Game als EventHandler @done(21-01-14 21:48)
+✔ Rollen shuffle behält Ordnung @done(21-01-14 23:07)
+Rolle als trait:
+  ☐ Gruppen
 
-Game als EventHandler:
-  ☐ ?
-
+Bugs:  
+  ✔ rc bei !start @done(20-12-31 20:38)

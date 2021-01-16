@@ -12,6 +12,10 @@ mod game;
 mod lobby;
 mod roles;
 
+use controller::Controller;
+
+pub const PREFIX: &'static str = "!";
+
 #[group]
 #[commands(ping)]
 struct General;
@@ -39,6 +43,7 @@ async fn main() {
     let token = std::env::var("TOKEN").expect("No Token in environment");
     let mut client = Client::builder(token)
         .framework(framework)
+        .event_handler(Controller::new())
         .await
         .expect("Error creating client");
 

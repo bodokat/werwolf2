@@ -20,16 +20,16 @@ pub enum Role {
 impl Role {
     pub async fn action<'a>(
         &self,
-        user: &'a User,
+        player: &'a User,
         players: &HashMap<&'a User, Role>,
         extra_roles: &Vec<Role>,
         ctx: &Context,
     ) -> CommandResult<Option<Swap<'a>>> {
         match self {
-            Role::Werwolf => werwolf::action(user, players, extra_roles, ctx).await,
-            Role::Seherin => seherin::action(user, players, extra_roles, ctx).await,
-            Role::Dieb => dieb::action(user, players, ctx).await,
-            Role::Unruhestifterin => unruhestifterin::action(user, players, ctx).await,
+            Role::Werwolf => werwolf::action(player, players, extra_roles, ctx).await,
+            Role::Seherin => seherin::action(player, players, extra_roles, ctx).await,
+            Role::Dieb => dieb::action(player, players, ctx).await,
+            Role::Unruhestifterin => unruhestifterin::action(player, players, ctx).await,
             Role::Dorfbewohner => Ok(None),
         }
     }

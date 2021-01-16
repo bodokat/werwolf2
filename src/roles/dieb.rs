@@ -1,21 +1,22 @@
-use crate::game::select;
+use crate::game::choice;
 
 use super::*;
 
 pub async fn action<'a>(
-    user: &'a User,
+    player: &'a User,
     players: &HashMap<&'a User, Role>,
     ctx: &Context,
 ) -> CommandResult<Option<Swap<'a>>> {
-    user.dm(ctx, |m| m.content("Mit wem willst du tauschen?"))
+    player
+        .dm(ctx, |m| m.content("Mit wem willst du tauschen?"))
         .await
         .expect("error sending message");
 
-    let others = players.iter().filter(|(&u, _)| u != user);
+    let others = players.iter().filter(|(&u, _)| u != player);
 
-    let to_swap: Option<(&&User, &Role)> = select(
+    let to_swap: Option<(&&User, &Role)> = choice(
         ctx,
-        user.create_dm_channel(ctx).await?.id,
+        player.create_dm_channel(ctx).await?.id,
         others,
         |(u, _)| u.name.clone(),
         '🤚'.into(),
@@ -24,9 +25,10 @@ pub async fn action<'a>(
 
     if let Some((u, r)) = to_swap {
         // println!("sende dieb message");
-        user.dm(ctx, |m| m.content(format!("{} war {}", u.name, r)))
+        player
+            .dm(ctx, |m| m.content(format!("{} war {}", u.name, r)))
             .await?;
     }
 
-    Ok(to_swap.map(|(u, _)| Swap(user, u)))
+    Ok(to_swap.map(|(u, _)| Swap(player, u)))
 }
