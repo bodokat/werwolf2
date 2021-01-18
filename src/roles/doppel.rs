@@ -42,14 +42,15 @@ impl Role for Doppel {
                 let mut action = role
                     .action(player, player_roles, extra_roles, ctx, receiver)
                     .await?;
-                action.insert(
-                    0,
+                let mut res = vec![
                     Action::Copy {
                         from: u,
                         to: player,
                     },
-                );
-                Ok(action)
+                    Action::SayRole(player),
+                ];
+                res.append(&mut action);
+                Ok(res)
             }
             None => Ok(vec![]),
         }

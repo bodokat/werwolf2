@@ -24,8 +24,7 @@ pub enum ReactionAction {
 impl ReactionAction {
     pub fn inner(&self) -> &Reaction {
         match self {
-            ReactionAction::Added(inner) => inner,
-            ReactionAction::Removed(inner) => inner,
+            ReactionAction::Added(inner) | ReactionAction::Removed(inner) => inner,
         }
     }
 }
@@ -38,7 +37,7 @@ pub struct Controller {
 
 impl Controller {
     pub fn new() -> Self {
-        Default::default()
+        Controller::default()
     }
 }
 
@@ -79,12 +78,17 @@ impl EventHandler for Controller {
         let channel_id = message.channel_id;
 
         match command.as_str() {
-            "join" => {
+            "join" | "j" => {
                 let mut guard = self.lobbies.write().await;
-                let lobby = guard.entry(message.guild_id.unwrap()).or_insert_with(|| {
-                    println!("Creating new lobby");
-                    Lobby::new(ctx.clone())
-                });
+                let lobby = guard
+                    .entry(match message.guild_id {
+                        Some(x) => x,
+                        None => return,
+                    })
+                    .or_insert_with(|| {
+                        println!("Creating new lobby");
+                        Lobby::new(ctx.clone())
+                    });
                 let author_id = message.author.id;
                 let res = lobby.0.send(LobbyMessage::Join(message.author)).await;
                 if let Err(tokio::sync::mpsc::error::SendError(LobbyMessage::Join(author))) = res {
@@ -104,7 +108,7 @@ impl EventHandler for Controller {
                     .await
                     .unwrap();
             }
-            "leave" => {
+            "leave" | "l" => {
                 let removed = self.messengers.write().await.remove(&message.author.id);
                 if let Some(lobby) = removed {
                     // if we get an Error, the Lobby is already closed (should never happen), so we can ignore it
@@ -115,7 +119,7 @@ impl EventHandler for Controller {
                     .await
                     .unwrap();
             }
-            "start" => {
+            "start" | "s" => {
                 if let Some(lobby) = self.lobbies.read().await.get(&message.guild_id.unwrap()) {
                     let _ = lobby.0.send(LobbyMessage::Start).await;
                 }

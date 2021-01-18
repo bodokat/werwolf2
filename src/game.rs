@@ -18,12 +18,6 @@ use crate::{
     roles::{self, Group, Role, Team},
 };
 
-#[derive(Clone, Copy)]
-enum VoteResult<'a> {
-    Tie,
-    Kill(&'a User),
-}
-
 pub async fn start_game(
     ctx: &Context,
     players: HashMap<&User, ReceiverStream<ReactionAction>>,
@@ -31,12 +25,14 @@ pub async fn start_game(
     let ctx = &ctx;
 
     let mut player_roles: Vec<Box<dyn Role>> = vec![
+        Box::new(roles::Doppel),
         Box::new(roles::Werwolf),
         Box::new(roles::Werwolf),
         Box::new(roles::Dorfbewohner),
         Box::new(roles::Seherin),
         Box::new(roles::Dieb),
         Box::new(roles::Unruhestifterin),
+        Box::new(roles::Schlaflose),
     ];
     assert!(player_roles.len() >= players.len());
 
@@ -147,20 +143,36 @@ pub async fn start_game(
         join_all(roles.keys().map(|p| p.dm(ctx, |m| m.content(content)))).await;
     }
 
-    let vote_result = votes.iter().fold(
-        (VoteResult::Tie, 0u32),
-        |(result, max), (&player, &votes)| match votes.cmp(&max) {
-            std::cmp::Ordering::Less => (result, max),
-            std::cmp::Ordering::Equal => (VoteResult::Tie, max),
-            std::cmp::Ordering::Greater => (VoteResult::Kill(player), votes),
+    let mut skipped = false;
+    let voted_players = votes.iter().fold(
+        (Vec::new(), 1_u32),
+        |(mut result, max), (&player, &votes)| match votes.cmp(&max) {
+            std::cmp::Ordering::Less => {
+                skipped = true;
+                (result, max)
+            }
+            std::cmp::Ordering::Equal => {
+                result.push(player);
+                (result, max)
+            }
+            std::cmp::Ordering::Greater => {
+                skipped = true;
+                (vec![player], votes)
+            }
         },
     );
-    let vote_result = vote_result.0;
+    let voted_players = if skipped { voted_players.0 } else { vec![] };
 
     {
-        let content = match vote_result {
-            VoteResult::Tie => "Tie: Nobody was killed".to_string(),
-            VoteResult::Kill(p) => format!("{} was killed", p.name),
+        let content = if voted_players.is_empty() {
+            "Niemand ist gestorben".to_string()
+        } else if voted_players.len() == 1 {
+            format!("{} ist gestorben", voted_players[0].name.clone())
+        } else {
+            format!(
+                "{} sind gestorben",
+                voted_players.iter().map(|p| p.name.clone()).join(", ")
+            )
         };
         let content = &content;
         join_all(roles.keys().map(|p| p.dm(ctx, |m| m.content(content)))).await;
@@ -169,18 +181,19 @@ pub async fn start_game(
     let has_werewolf = final_roles.values().any(|role| role.group() == Group::Wolf);
 
     let winning_team = if has_werewolf {
-        match vote_result {
-            VoteResult::Kill(p)
-                if final_roles.get(p).expect("player should be in map").group() == Group::Wolf =>
-            {
-                Team::Dorf
-            }
-            _ => Team::Wolf,
+        if voted_players
+            .iter()
+            .any(|p| final_roles.get(p).expect("player should be in map").group() == Group::Wolf)
+        {
+            Team::Dorf
+        } else {
+            Team::Wolf
         }
     } else {
-        match vote_result {
-            VoteResult::Tie => Team::Dorf,
-            VoteResult::Kill(_) => Team::Wolf,
+        if voted_players.is_empty() {
+            Team::Dorf
+        } else {
+            Team::Wolf
         }
     };
 
@@ -197,14 +210,19 @@ pub async fn start_game(
         .await;
     }
 
-    let winners = final_roles
-        .iter()
-        .filter(|(_, role)| role.team() == winning_team)
-        .map(|(player, _)| player.name.clone())
-        .join(", ");
-
     {
-        let content = &format!("Die Gewinner sind: {}\n----------", winners);
+        let winners = final_roles
+            .iter()
+            .filter_map(|(player, role)| {
+                if role.team() == winning_team {
+                    Some(player.name.clone())
+                } else {
+                    None
+                }
+            })
+            .join(", ");
+
+        let content = &format!("Die Gewinner sind: {}", winners);
         join_all(
             players
                 .iter()
@@ -212,6 +230,13 @@ pub async fn start_game(
         )
         .await;
     }
+
+    join_all(
+        players
+            .iter()
+            .map(|&(_, p, _)| p.dm(ctx, |m| m.content("----------------"))),
+    )
+    .await;
 
     Ok(())
 }

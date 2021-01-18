@@ -48,7 +48,7 @@ impl Role for Unruhestifterin {
                                 return Ok(vec![Action::Swap(target, to_swap)])
                             }
                             None => to_swap = Some(target),
-                            _ => (),
+                            Some(_) => (),
                         },
                         ReactionAction::Removed(_) => match to_swap {
                             Some(t) if t == target => to_swap = None,

@@ -21,7 +21,7 @@ impl Role for Dieb {
 
         let others = player_roles.iter().filter(|(&u, _)| u != player);
 
-        let to_swap: Option<(&&User, &&Box<dyn Role>)> = choice(
+        let to_swap = choice(
             ctx,
             receiver,
             player.create_dm_channel(ctx).await?.id,

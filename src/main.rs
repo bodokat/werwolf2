@@ -1,3 +1,5 @@
+#![warn(clippy::all)]
+
 use serenity::{
     client::{Client, Context},
     framework::standard::{
