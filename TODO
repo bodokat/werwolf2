@@ -5,8 +5,11 @@ Gameplay:
 
 ☐ einladen
 
+☐ crash handling
+
 Rollen:
-  ☐ Schlaflose
+  ✔ Schlaflose @done(21-01-18 14:24)
+  ✔ Doppelgängerin @done(21-01-18 14:24)
   ✔ Dieb: Rolle sehen @done(21-01-03 00:49)
 
 Config:
@@ -17,8 +20,7 @@ Config:
 
 ✔ Game als EventHandler @done(21-01-14 21:48)
 ✔ Rollen shuffle behält Ordnung @done(21-01-14 23:07)
-Rolle als trait:
-  ☐ Gruppen
+✔ Rolle als trait @done(21-01-17 22:04)
 
 Bugs:  
   ✔ rc bei !start @done(20-12-31 20:38)

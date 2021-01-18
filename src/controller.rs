@@ -15,6 +15,7 @@ use async_trait::async_trait;
 use crate::lobby::{Lobby, LobbyMessage};
 use crate::PREFIX;
 
+#[derive(Debug)]
 pub enum ReactionAction {
     Added(Reaction),
     Removed(Reaction),

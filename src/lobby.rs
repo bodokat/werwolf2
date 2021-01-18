@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use futures::{future::select, pin_mut};
 use serenity::{client::Context, model::user::User};
 use tokio::sync::mpsc;
+use tokio_stream::wrappers::ReceiverStream;
 
 use crate::{controller::ReactionAction, game::start_game};
 
@@ -54,7 +55,7 @@ async fn lobby_loop(ctx: Context, mut data: LobbyData, mut rx: mpsc::Receiver<Lo
                 for user in data.players.iter() {
                     let (tx, rx) = mpsc::channel(32);
                     senders.insert(user.id, tx);
-                    recievers.insert(user, rx);
+                    recievers.insert(user, ReceiverStream::new(rx));
                 }
 
                 let game = start_game(&ctx, recievers);

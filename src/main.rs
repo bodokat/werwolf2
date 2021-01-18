@@ -14,7 +14,7 @@ mod roles;
 
 use controller::Controller;
 
-pub const PREFIX: &'static str = "!";
+pub const PREFIX: &str = "!";
 
 #[group]
 #[commands(ping)]

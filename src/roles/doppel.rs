@@ -2,20 +2,26 @@ use crate::game::choice;
 
 use super::*;
 
-pub struct Dieb;
+pub struct Doppel;
+
+impl Display for Doppel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Doppelgängerin")
+    }
+}
 
 #[async_trait]
-impl Role for Dieb {
+impl Role for Doppel {
     async fn action<'a>(
         &self,
         player: &'a User,
         player_roles: &HashMap<&'a User, &Box<dyn Role>>,
-        _extra_roles: &[Box<dyn Role>],
+        extra_roles: &[Box<dyn Role>],
         ctx: &Context,
         receiver: &mut ReceiverStream<ReactionAction>,
     ) -> CommandResult<Vec<Action<'a>>> {
         player
-            .dm(ctx, |m| m.content("Mit wem willst du tauschen?"))
+            .dm(ctx, |m| m.content("Wen willst du kopieren?"))
             .await
             .expect("error sending message");
 
@@ -32,7 +38,19 @@ impl Role for Dieb {
         .await;
 
         match to_swap {
-            Some((u, _)) => Ok(vec![Action::Swap(player, u), Action::SayRole(player)]),
+            Some((u, role)) => {
+                let mut action = role
+                    .action(player, player_roles, extra_roles, ctx, receiver)
+                    .await?;
+                action.insert(
+                    0,
+                    Action::Copy {
+                        from: u,
+                        to: player,
+                    },
+                );
+                Ok(action)
+            }
             None => Ok(vec![]),
         }
     }
@@ -43,11 +61,5 @@ impl Role for Dieb {
 
     fn group(&self) -> Group {
         Group::Mensch
-    }
-}
-
-impl Display for Dieb {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Dieb")
     }
 }
