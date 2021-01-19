@@ -1,7 +1,4 @@
-use futures::{
-    future::{join_all, ready},
-    stream::FuturesOrdered,
-};
+use futures::future::{join_all, ready};
 use itertools::Itertools;
 use rand::prelude::*;
 use serenity::{
@@ -15,7 +12,7 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use crate::{
     controller::ReactionAction,
-    roles::{self, Group, Role, Team},
+    roles::{self, Group, Role, RoleData, Team},
 };
 
 pub async fn start_game(
@@ -57,12 +54,12 @@ pub async fn start_game(
 
     let mut roles: HashMap<&User, &Box<dyn Role>> = HashMap::with_capacity(players.len());
 
-    let mut players: Vec<(&Box<dyn Role>, &User, _)> = player_roles
+    let mut players: Vec<(Box<dyn RoleData>, &User, _)> = player_roles
         .iter()
         .map(|role| {
             let (p, m) = players.pop().unwrap();
             roles.insert(p, role);
-            (role, p, m)
+            (role.build(), p, m)
         })
         .collect();
 
@@ -75,26 +72,26 @@ pub async fn start_game(
 
     // --- Action
 
-    let mut final_roles = roles.clone();
-
     players
         .iter_mut()
         // perform each role's action
-        .map(|(role, player, receiver)| role.action(player, &roles, &extra_roles, ctx, receiver))
-        .collect::<FuturesOrdered<_>>()
-        .map(|s| {
-            s.unwrap_or_else(|err| {
-                println!("Error: {}", err);
-                vec![]
-            })
-        })
-        .for_each(|actions| {
-            actions
-                .into_iter()
-                .for_each(|action| action.perform(&mut final_roles, ctx));
-            ready(())
-        })
+        .map(|(role, player, receiver)| role.ask(player, &roles, &extra_roles, ctx, receiver))
+        .collect::<FuturesUnordered<_>>()
+        // .map(|s| {
+        //     s.unwrap_or_else(|err| {
+        //         println!("Error: {}", err);
+        //     })
+        // })
+        .for_each(|_| ready(()))
         .await;
+
+    for (role, player, _) in players.iter() {
+        role.action(player, &mut roles, &extra_roles, ctx);
+    }
+
+    for (role, player, _) in players.iter() {
+        role.after(player, &mut roles, &extra_roles, ctx);
+    }
 
     // --- Voting
 
@@ -178,12 +175,13 @@ pub async fn start_game(
         join_all(roles.keys().map(|p| p.dm(ctx, |m| m.content(content)))).await;
     }
 
-    let has_werewolf = final_roles.values().any(|role| role.group() == Group::Wolf);
+    let has_werewolf = roles.values().any(|role| role.group() == Group::Wolf);
 
+    #[allow(clippy::collapsible_if)]
     let winning_team = if has_werewolf {
         if voted_players
             .iter()
-            .any(|p| final_roles.get(p).expect("player should be in map").group() == Group::Wolf)
+            .any(|p| roles.get(p).expect("player should be in map").group() == Group::Wolf)
         {
             Team::Dorf
         } else {
@@ -211,7 +209,7 @@ pub async fn start_game(
     }
 
     {
-        let winners = final_roles
+        let winners = roles
             .iter()
             .filter_map(|(player, role)| {
                 if role.team() == winning_team {

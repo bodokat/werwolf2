@@ -1,9 +1,10 @@
 use super::*;
 
+#[derive(Clone, Default)]
 pub struct Dorfbewohner;
 
 #[async_trait]
-impl Role for Dorfbewohner {
+impl RoleData for Dorfbewohner {
     fn team(&self) -> Team {
         Team::Dorf
     }

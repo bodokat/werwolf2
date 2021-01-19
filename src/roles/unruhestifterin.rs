@@ -1,20 +1,49 @@
 use super::*;
 
+use crate::utils::MapExt;
+
+#[derive(Clone)]
 pub struct Unruhestifterin;
 
-#[async_trait]
+impl Display for Unruhestifterin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Unruhestifterin")
+    }
+}
+
 impl Role for Unruhestifterin {
-    async fn action<'a>(
-        &self,
-        player: &'a User,
-        players: &HashMap<&'a User, &Box<dyn Role>>,
+    fn build(&self) -> Box<dyn RoleData> {
+        Box::new(UnruhestifterinData { to_swap: None })
+    }
+
+    fn team(&self) -> Team {
+        Team::Dorf
+    }
+
+    fn group(&self) -> Group {
+        Group::Mensch
+    }
+}
+
+#[derive(Clone)]
+pub struct UnruhestifterinData {
+    to_swap: Option<(User, User)>,
+}
+
+#[async_trait]
+impl RoleData for UnruhestifterinData {
+    async fn ask(
+        &mut self,
+        player: &User,
+        players: &HashMap<&User, &Box<dyn Role>>,
         _extra_roles: &[Box<dyn Role>],
         ctx: &Context,
         receiver: &mut ReceiverStream<ReactionAction>,
-    ) -> CommandResult<Vec<Action<'a>>> {
+    ) {
         player
             .dm(ctx, |m| m.content("Welche Spieler willst du tauschen?"))
-            .await?;
+            .await
+            .unwrap();
 
         let me = ctx.cache.current_user_id().await;
 
@@ -45,7 +74,8 @@ impl Role for Unruhestifterin {
                     match r {
                         ReactionAction::Added(_) => match to_swap {
                             Some(to_swap) if to_swap != target => {
-                                return Ok(vec![Action::Swap(target, to_swap)])
+                                self.to_swap = Some((target.clone(), to_swap.clone()));
+                                return;
                             }
                             None => to_swap = Some(target),
                             Some(_) => (),
@@ -58,8 +88,18 @@ impl Role for Unruhestifterin {
                 }
             }
         }
+    }
 
-        Ok(vec![])
+    fn action(
+        &self,
+        _player: &User,
+        player_roles: &mut HashMap<&User, &Box<dyn Role>>,
+        _extra_roles: &[Box<dyn Role>],
+        _ctx: &Context,
+    ) {
+        if let Some((x, y)) = &self.to_swap {
+            player_roles.swap(x, y);
+        }
     }
 
     fn team(&self) -> Team {
@@ -71,7 +111,7 @@ impl Role for Unruhestifterin {
     }
 }
 
-impl Display for Unruhestifterin {
+impl Display for UnruhestifterinData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Unruhestifterin")
     }

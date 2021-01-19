@@ -13,6 +13,7 @@ mod controller;
 mod game;
 mod lobby;
 mod roles;
+mod utils;
 
 use controller::Controller;
 

@@ -1,18 +1,28 @@
 use super::*;
 
+#[derive(Clone, Default)]
 pub struct Schlaflose;
 
 #[async_trait]
-impl Role for Schlaflose {
-    async fn action<'a>(
+impl RoleData for Schlaflose {
+    fn after(
         &self,
-        player: &'a User,
-        _player_roles: &HashMap<&'a User, &Box<dyn Role>>,
+        player: &User,
+        player_roles: &mut HashMap<&User, &Box<dyn Role>>,
         _extra_roles: &[Box<dyn Role>],
-        _ctx: &Context,
-        _receiver: &mut ReceiverStream<ReactionAction>,
-    ) -> CommandResult<Vec<Action<'a>>> {
-        Ok(vec![Action::SayRole(player)])
+        ctx: &Context,
+    ) {
+        let role = player_roles.get(player).unwrap().to_string();
+        let ctx = ctx.clone();
+        let player_id = player.id;
+        tokio::spawn(async move {
+            let _ = player_id
+                .create_dm_channel(&ctx)
+                .await
+                .unwrap()
+                .say(&ctx, format!("Du bist jetzt {}", role))
+                .await;
+        });
     }
 
     fn team(&self) -> Team {

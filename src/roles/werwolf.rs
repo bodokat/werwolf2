@@ -2,6 +2,7 @@ use super::*;
 
 use rand::prelude::{thread_rng, IteratorRandom};
 
+#[derive(Clone, Default)]
 pub struct Werwolf;
 
 impl Display for Werwolf {
@@ -11,15 +12,15 @@ impl Display for Werwolf {
 }
 
 #[async_trait]
-impl Role for Werwolf {
-    async fn action<'a>(
-        &self,
-        player: &'a User,
-        players: &HashMap<&'a User, &Box<dyn Role>>,
+impl RoleData for Werwolf {
+    async fn ask(
+        &mut self,
+        player: &User,
+        players: &HashMap<&User, &Box<dyn Role>>,
         extra_roles: &[Box<dyn Role>],
         ctx: &Context,
         _receiver: &mut ReceiverStream<ReactionAction>,
-    ) -> CommandResult<Vec<Action<'a>>> {
+    ) {
         let mut others = players
             .iter()
             .filter(|(&other_user, role)| role.group() == Group::Wolf && other_user != player);
@@ -40,8 +41,7 @@ impl Role for Werwolf {
             },
         };
 
-        player.dm(ctx, |m| m.content(content)).await?;
-        Ok(vec![])
+        player.dm(ctx, |m| m.content(content)).await.unwrap();
     }
 
     fn team(&self) -> Team {

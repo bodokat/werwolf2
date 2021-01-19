@@ -4,21 +4,23 @@ use crate::game::choice;
 
 use super::*;
 
+#[derive(Clone, Default)]
 pub struct Seherin;
 
 #[async_trait]
-impl Role for Seherin {
-    async fn action<'a>(
-        &self,
-        player: &'a User,
-        players: &HashMap<&'a User, &Box<dyn Role>>,
+impl RoleData for Seherin {
+    async fn ask(
+        &mut self,
+        player: &User,
+        players: &HashMap<&User, &Box<dyn Role>>,
         extra_roles: &[Box<dyn Role>],
         ctx: &Context,
         receiver: &mut ReceiverStream<ReactionAction>,
-    ) -> CommandResult<Vec<Action<'a>>> {
+    ) {
         player
             .dm(ctx, |m| m.content("Wesen Rolle willst du sehen?"))
-            .await?;
+            .await
+            .unwrap();
 
         let others = players.iter().filter(|(&u, _)| u != player);
         let choices = others.map(|(&u, _)| Some(u)).chain(once(None));
@@ -26,7 +28,7 @@ impl Role for Seherin {
         let c = choice(
             ctx,
             receiver,
-            player.create_dm_channel(ctx).await?.id,
+            player.create_dm_channel(ctx).await.unwrap().id,
             choices,
             |x| match x {
                 Some(u) => u.name.clone(),
@@ -47,7 +49,8 @@ impl Role for Seherin {
                             players.get(u).expect("player not in map")
                         ))
                     })
-                    .await?;
+                    .await
+                    .unwrap();
             }
             None => {
                 player
@@ -57,11 +60,10 @@ impl Role for Seherin {
                             extra_roles[0], extra_roles[1]
                         ))
                     })
-                    .await?;
+                    .await
+                    .unwrap();
             }
         }
-
-        Ok(vec![])
     }
 
     fn team(&self) -> Team {
