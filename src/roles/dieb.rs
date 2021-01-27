@@ -30,7 +30,7 @@ impl RoleData for DiebData {
     async fn ask(
         &mut self,
         player: &User,
-        player_roles: &HashMap<&User, &Box<dyn Role>>,
+        player_roles: &HashMap<&User, Box<dyn Role>>,
         _extra_roles: &[Box<dyn Role>],
         ctx: &Context,
         receiver: &mut ReceiverStream<ReactionAction>,
@@ -55,10 +55,10 @@ impl RoleData for DiebData {
         self.to_steal = to_steal.map(|(&u, _)| u.clone());
     }
 
-    fn action(
+    fn action<'a>(
         &self,
-        player: &User,
-        player_roles: &mut HashMap<&User, &Box<dyn Role>>,
+        player: &'a User,
+        player_roles: &mut HashMap<&User, Box<dyn Role>>,
         _extra_roles: &[Box<dyn Role>],
         ctx: &Context,
     ) {

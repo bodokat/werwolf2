@@ -8,7 +8,7 @@ impl RoleData for Schlaflose {
     fn after(
         &self,
         player: &User,
-        player_roles: &mut HashMap<&User, &Box<dyn Role>>,
+        player_roles: &mut HashMap<&User, Box<dyn Role>>,
         _extra_roles: &[Box<dyn Role>],
         ctx: &Context,
     ) {

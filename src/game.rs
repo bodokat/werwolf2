@@ -19,8 +19,6 @@ pub async fn start_game(
     ctx: &Context,
     players: HashMap<&User, ReceiverStream<ReactionAction>>,
 ) -> CommandResult {
-    let ctx = &ctx;
-
     let mut player_roles: Vec<Box<dyn Role>> = vec![
         Box::new(roles::Doppel),
         Box::new(roles::Werwolf),
@@ -52,13 +50,13 @@ pub async fn start_game(
         (players, extra_roles)
     };
 
-    let mut roles: HashMap<&User, &Box<dyn Role>> = HashMap::with_capacity(players.len());
+    let mut roles: HashMap<&User, Box<dyn Role>> = HashMap::with_capacity(players.len());
 
     let mut players: Vec<(Box<dyn RoleData>, &User, _)> = player_roles
         .iter()
         .map(|role| {
             let (p, m) = players.pop().unwrap();
-            roles.insert(p, role);
+            roles.insert(p, role.clone());
             (role.build(), p, m)
         })
         .collect();
@@ -74,14 +72,8 @@ pub async fn start_game(
 
     players
         .iter_mut()
-        // perform each role's action
         .map(|(role, player, receiver)| role.ask(player, &roles, &extra_roles, ctx, receiver))
         .collect::<FuturesUnordered<_>>()
-        // .map(|s| {
-        //     s.unwrap_or_else(|err| {
-        //         println!("Error: {}", err);
-        //     })
-        // })
         .for_each(|_| ready(()))
         .await;
 
@@ -96,9 +88,9 @@ pub async fn start_game(
     // --- Voting
 
     join_all(
-        roles
-            .keys()
-            .map(|p| p.dm(ctx, |m| m.content("Voting started"))),
+        players
+            .iter()
+            .map(|(_, p, _)| p.dm(ctx, |m| m.content("Voting started"))),
     )
     .await;
 

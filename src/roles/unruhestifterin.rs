@@ -35,7 +35,7 @@ impl RoleData for UnruhestifterinData {
     async fn ask(
         &mut self,
         player: &User,
-        players: &HashMap<&User, &Box<dyn Role>>,
+        players: &HashMap<&User, Box<dyn Role>>,
         _extra_roles: &[Box<dyn Role>],
         ctx: &Context,
         receiver: &mut ReceiverStream<ReactionAction>,
@@ -90,10 +90,10 @@ impl RoleData for UnruhestifterinData {
         }
     }
 
-    fn action(
+    fn action<'a>(
         &self,
-        _player: &User,
-        player_roles: &mut HashMap<&User, &Box<dyn Role>>,
+        _player: &'a User,
+        player_roles: &mut HashMap<&User, Box<dyn Role>>,
         _extra_roles: &[Box<dyn Role>],
         _ctx: &Context,
     ) {

@@ -12,7 +12,7 @@ impl RoleData for Seherin {
     async fn ask(
         &mut self,
         player: &User,
-        players: &HashMap<&User, &Box<dyn Role>>,
+        players: &HashMap<&User, Box<dyn Role>>,
         extra_roles: &[Box<dyn Role>],
         ctx: &Context,
         receiver: &mut ReceiverStream<ReactionAction>,

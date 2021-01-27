@@ -1,12 +1,16 @@
-Gameplay:
-  ☐ Skip
-  ☐ Tie -> alle sterben
-  ☐ Nach Spiel: Rollen
+☐ Twilight
 
-☐ einladen
+Gameplay:
+  ☐ Skip?
+  ✔ Tie -> alle sterben @done(21-01-25 17:18)
+  ☐ Nach Spiel: Rollen + Aktion
+
+Funktionen:
+  ☐ einladen
+  ☐ config
+  ✔ alle in Sprachkanal adden @done(21-01-27 13:44)
 
 ☐ embeds
-
 ☐ crash handling
 
 Rollen:
@@ -18,12 +22,6 @@ Rollen:
 Config:
   ☐ ob min 1 werwolf
   ☐ welche Rollen
-
-✔ nach spiel => wieder in lobby @done(21-01-02 23:35)
-
-✔ Game als EventHandler @done(21-01-14 21:48)
-✔ Rollen shuffle behält Ordnung @done(21-01-14 23:07)
-✔ Rolle als trait @done(21-01-17 22:04)
 
 Bugs:  
   ✔ rc bei !start @done(20-12-31 20:38)

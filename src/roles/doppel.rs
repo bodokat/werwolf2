@@ -26,7 +26,7 @@ impl Display for Doppel {
 }
 
 pub struct DoppelData {
-    copied: Option<Box<dyn RoleData>>,
+    copied: Option<(Box<dyn Role>, Box<dyn RoleData>)>,
 }
 
 impl Display for DoppelData {
@@ -40,7 +40,7 @@ impl RoleData for DoppelData {
     async fn ask(
         &mut self,
         player: &User,
-        player_roles: &HashMap<&User, &Box<dyn Role>>,
+        player_roles: &HashMap<&User, Box<dyn Role>>,
         extra_roles: &[Box<dyn Role>],
         ctx: &Context,
         receiver: &mut ReceiverStream<ReactionAction>,
@@ -52,7 +52,7 @@ impl RoleData for DoppelData {
 
         let others = player_roles.iter().filter(|(&u, _)| u != player);
 
-        let to_copy: Option<(&&User, &&Box<dyn Role>)> = choice(
+        let to_copy = choice(
             ctx,
             receiver,
             player.create_dm_channel(ctx).await.unwrap().id,
@@ -62,34 +62,38 @@ impl RoleData for DoppelData {
         )
         .await;
 
-        if let Some((_, &role)) = to_copy {
-            let mut role = role.build();
-            role.ask(player, player_roles, extra_roles, ctx, receiver)
+        if let Some((_, role)) = to_copy {
+            let mut data = role.build();
+            let _ = player
+                .dm(ctx, |m| m.content(format!("Du bist jetzt {}", role)))
                 .await;
-            self.copied = Some(role);
+            data.ask(player, player_roles, extra_roles, ctx, receiver)
+                .await;
+            self.copied = Some((role.clone(), data));
         }
     }
 
-    fn action(
+    fn action<'a>(
         &self,
-        player: &User,
-        player_roles: &mut HashMap<&User, &Box<dyn Role>>,
+        player: &'a User,
+        player_roles: &mut HashMap<&'a User, Box<dyn Role>>,
         extra_roles: &[Box<dyn Role>],
         ctx: &Context,
     ) {
-        if let Some(c) = &self.copied {
-            c.action(player, player_roles, extra_roles, ctx)
+        if let Some((role, data)) = &self.copied {
+            player_roles.insert(&player, role.clone());
+            data.action(player, player_roles, extra_roles, ctx)
         }
     }
 
     fn after(
         &self,
         player: &User,
-        player_roles: &mut HashMap<&User, &Box<dyn Role>>,
+        player_roles: &mut HashMap<&User, Box<dyn Role>>,
         extra_roles: &[Box<dyn Role>],
         ctx: &Context,
     ) {
-        if let Some(c) = &self.copied {
+        if let Some((_, c)) = &self.copied {
             c.after(player, player_roles, extra_roles, ctx)
         }
     }

@@ -19,6 +19,7 @@ pub enum Team {
 #[derive(PartialEq, Eq)]
 pub enum Group {
     Mensch,
+    Freimaurer,
     Wolf,
 }
 
@@ -53,17 +54,17 @@ pub trait RoleData: Display + Send + Sync {
     async fn ask(
         &mut self,
         _player: &User,
-        _player_roles: &HashMap<&User, &Box<dyn Role>>,
+        _player_roles: &HashMap<&User, Box<dyn Role>>,
         _extra_roles: &[Box<dyn Role>],
         _ctx: &Context,
         _receiver: &mut ReceiverStream<ReactionAction>,
     ) {
     }
 
-    fn action(
+    fn action<'a>(
         &self,
-        _player: &User,
-        _player_roles: &mut HashMap<&User, &Box<dyn Role>>,
+        _player: &'a User,
+        _player_roles: &mut HashMap<&'a User, Box<dyn Role>>,
         _extra_roles: &[Box<dyn Role>],
         _ctx: &Context,
     ) {
@@ -72,7 +73,7 @@ pub trait RoleData: Display + Send + Sync {
     fn after(
         &self,
         _player: &User,
-        _player_roles: &mut HashMap<&User, &Box<dyn Role>>,
+        _player_roles: &mut HashMap<&User, Box<dyn Role>>,
         _extra_roles: &[Box<dyn Role>],
         _ctx: &Context,
     ) {
@@ -105,3 +106,9 @@ pub use schlaflose::Schlaflose;
 
 mod doppel;
 pub use doppel::Doppel;
+
+mod freimaurer;
+pub use freimaurer::Freimaurer;
+
+mod gunstling;
+pub use gunstling::Gunstling;
