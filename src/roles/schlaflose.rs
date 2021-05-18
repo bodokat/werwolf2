@@ -4,25 +4,17 @@ use super::*;
 pub struct Schlaflose;
 
 #[async_trait]
-impl RoleData for Schlaflose {
-    fn after(
-        &self,
-        player: &User,
-        player_roles: &mut HashMap<&User, Box<dyn Role>>,
-        _extra_roles: &[Box<dyn Role>],
-        ctx: &Context,
+impl RoleBehavior for Schlaflose {
+    async fn after<'a>(
+        &mut self,
+        data: &GameData<'a>,
+        _reactions: &mut ReceiverStream<ReactionAction>,
+        index: usize,
     ) {
-        let role = player_roles.get(player).unwrap().to_string();
-        let ctx = ctx.clone();
-        let player_id = player.id;
-        tokio::spawn(async move {
-            let _ = player_id
-                .create_dm_channel(&ctx)
-                .await
-                .unwrap()
-                .say(&ctx, format!("Du bist jetzt {}", role))
-                .await;
-        });
+        data.dm_channels[index]
+            .say(data.context, format!("Du bist jetzt {}", data.roles[index]))
+            .await
+            .expect("Error sending message");
     }
 
     fn team(&self) -> Team {

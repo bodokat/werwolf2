@@ -4,7 +4,7 @@ use super::*;
 pub struct Dorfbewohner;
 
 #[async_trait]
-impl RoleData for Dorfbewohner {
+impl RoleBehavior for Dorfbewohner {
     fn team(&self) -> Team {
         Team::Dorf
     }

@@ -50,12 +50,12 @@ async fn lobby_loop(ctx: Context, mut data: LobbyData, mut rx: mpsc::Receiver<Lo
             }
             LobbyMessage::Start => {
                 let mut senders = HashMap::with_capacity(data.players.len());
-                let mut recievers = HashMap::with_capacity(data.players.len());
+                let mut recievers = Vec::with_capacity(data.players.len());
 
                 for user in &data.players {
                     let (tx, rx) = mpsc::channel(32);
                     senders.insert(user.id, tx);
-                    recievers.insert(user, ReceiverStream::new(rx));
+                    recievers.push((user, ReceiverStream::new(rx)));
                 }
 
                 let game = start_game(&ctx, recievers);

@@ -4,11 +4,10 @@ use async_trait::async_trait;
 use dyn_clone::DynClone;
 use futures::{stream::FuturesUnordered, StreamExt};
 use itertools::Itertools;
-use serenity::{client::Context, model::prelude::User};
 use std::{collections::HashMap, fmt::Display};
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::controller::ReactionAction;
+use crate::{controller::ReactionAction, game::GameData};
 
 #[derive(PartialEq, Eq)]
 pub enum Team {
@@ -24,7 +23,7 @@ pub enum Group {
 }
 
 pub trait Role: DynClone + Display + Send + Sync {
-    fn build(&self) -> Box<dyn RoleData>;
+    fn build(&self) -> Box<dyn RoleBehavior>;
 
     fn team(&self) -> Team;
 
@@ -33,9 +32,9 @@ pub trait Role: DynClone + Display + Send + Sync {
 
 impl<T> Role for T
 where
-    T: 'static + RoleData + Clone,
+    T: 'static + RoleBehavior + Clone,
 {
-    fn build(&self) -> Box<dyn RoleData> {
+    fn build(&self) -> Box<dyn RoleBehavior> {
         let t: T = self.clone();
         Box::new(t)
     }
@@ -50,32 +49,22 @@ where
 }
 
 #[async_trait]
-pub trait RoleData: Display + Send + Sync {
-    async fn ask(
+pub trait RoleBehavior: Display + Send + Sync {
+    async fn ask<'a>(
         &mut self,
-        _player: &User,
-        _player_roles: &HashMap<&User, Box<dyn Role>>,
-        _extra_roles: &[Box<dyn Role>],
-        _ctx: &Context,
-        _receiver: &mut ReceiverStream<ReactionAction>,
+        _data: &GameData<'a>,
+        _reactions: &mut ReceiverStream<ReactionAction>,
+        _index: usize,
     ) {
     }
 
-    fn action<'a>(
-        &self,
-        _player: &'a User,
-        _player_roles: &mut HashMap<&'a User, Box<dyn Role>>,
-        _extra_roles: &[Box<dyn Role>],
-        _ctx: &Context,
-    ) {
-    }
+    fn action<'a>(&mut self, _data: &mut GameData<'a>, _index: usize) {}
 
-    fn after(
-        &self,
-        _player: &User,
-        _player_roles: &mut HashMap<&User, Box<dyn Role>>,
-        _extra_roles: &[Box<dyn Role>],
-        _ctx: &Context,
+    async fn after<'a>(
+        &mut self,
+        _data: &GameData<'a>,
+        _reactions: &mut ReceiverStream<ReactionAction>,
+        _index: usize,
     ) {
     }
 

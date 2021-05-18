@@ -1,5 +1,4 @@
 use crate::game::choice;
-use crate::utils::MapExt;
 
 use super::*;
 
@@ -7,7 +6,7 @@ use super::*;
 pub struct Dieb;
 
 impl Role for Dieb {
-    fn build(&self) -> Box<dyn RoleData> {
+    fn build(&self) -> Box<dyn RoleBehavior> {
         Box::new(DiebData { to_steal: None })
     }
 
@@ -22,52 +21,44 @@ impl Role for Dieb {
 
 #[derive(Clone)]
 struct DiebData {
-    to_steal: Option<User>,
+    to_steal: Option<usize>,
 }
 
 #[async_trait]
-impl RoleData for DiebData {
-    async fn ask(
+impl RoleBehavior for DiebData {
+    async fn ask<'a>(
         &mut self,
-        player: &User,
-        player_roles: &HashMap<&User, Box<dyn Role>>,
-        _extra_roles: &[Box<dyn Role>],
-        ctx: &Context,
-        receiver: &mut ReceiverStream<ReactionAction>,
+        data: &GameData<'a>,
+        reactions: &mut ReceiverStream<ReactionAction>,
+        index: usize,
     ) {
-        player
-            .dm(ctx, |m| m.content("Mit wem willst du tauschen?"))
+        data.users[index]
+            .dm(data.context, |m| m.content("Mit wem willst du tauschen?"))
             .await
             .expect("error sending message");
 
-        let others = player_roles.iter().filter(|(&u, _)| u != player);
+        let others = data.users.iter().enumerate().filter(|&(i, _)| i != index);
 
         let to_steal = choice(
-            ctx,
-            receiver,
-            player.create_dm_channel(ctx).await.unwrap().id,
+            data.context,
+            reactions,
+            data.dm_channels[index].id,
             others,
-            |(u, _)| u.name.clone(),
+            |(_, u)| u.name.clone(),
             '🤚'.into(),
         )
         .await;
 
-        self.to_steal = to_steal.map(|(&u, _)| u.clone());
+        self.to_steal = to_steal.map(|(i, _)| i);
     }
 
-    fn action<'a>(
-        &self,
-        player: &'a User,
-        player_roles: &mut HashMap<&User, Box<dyn Role>>,
-        _extra_roles: &[Box<dyn Role>],
-        ctx: &Context,
-    ) {
-        if let Some(to_steal) = &self.to_steal {
-            player_roles.swap(player, &to_steal);
-            let ctx = ctx.clone();
-            let player_id = player.id;
-            let name = to_steal.name.clone();
-            let new_role = player_roles.get(player).unwrap().to_string();
+    fn action<'a>(&mut self, data: &mut GameData<'a>, index: usize) {
+        if let Some(to_steal) = self.to_steal {
+            data.roles.swap(index, to_steal);
+            let ctx = data.context.clone();
+            let player_id = data.users[index].id;
+            let name = data.users[to_steal].name.clone();
+            let new_role = data.roles[index].to_string();
             tokio::spawn(async move {
                 let _ = player_id
                     .create_dm_channel(&ctx)

@@ -6,7 +6,7 @@ use super::*;
 pub struct Doppel;
 
 impl Role for Doppel {
-    fn build(&self) -> Box<dyn RoleData> {
+    fn build(&self) -> Box<dyn RoleBehavior> {
         Box::new(DoppelData { copied: None })
     }
 
@@ -26,7 +26,7 @@ impl Display for Doppel {
 }
 
 pub struct DoppelData {
-    copied: Option<(Box<dyn Role>, Box<dyn RoleData>)>,
+    copied: Option<(Box<dyn Role>, Box<dyn RoleBehavior>)>,
 }
 
 impl Display for DoppelData {
@@ -36,65 +36,58 @@ impl Display for DoppelData {
 }
 
 #[async_trait]
-impl RoleData for DoppelData {
-    async fn ask(
+impl RoleBehavior for DoppelData {
+    async fn ask<'a>(
         &mut self,
-        player: &User,
-        player_roles: &HashMap<&User, Box<dyn Role>>,
-        extra_roles: &[Box<dyn Role>],
-        ctx: &Context,
-        receiver: &mut ReceiverStream<ReactionAction>,
+        data: &GameData<'a>,
+        reactions: &mut ReceiverStream<ReactionAction>,
+        index: usize,
     ) {
-        player
-            .dm(ctx, |m| m.content("Wen willst du kopieren?"))
+        data.users[index]
+            .dm(data.context, |m| m.content("Wen willst du kopieren?"))
             .await
             .expect("error sending message");
 
-        let others = player_roles.iter().filter(|(&u, _)| u != player);
+        let others = data.users.iter().enumerate().filter(|&(i, _)| i != index);
 
         let to_copy = choice(
-            ctx,
-            receiver,
-            player.create_dm_channel(ctx).await.unwrap().id,
+            data.context,
+            reactions,
+            data.dm_channels[index].id,
             others,
-            |(u, _)| u.name.clone(),
+            |(_, u)| u.name.clone(),
             '🤚'.into(),
         )
         .await;
 
-        if let Some((_, role)) = to_copy {
-            let mut data = role.build();
-            let _ = player
-                .dm(ctx, |m| m.content(format!("Du bist jetzt {}", role)))
+        if let Some((to_copy, _)) = to_copy {
+            let mut behavior = data.roles[to_copy].build();
+            let _ = data.dm_channels[index]
+                .say(
+                    data.context,
+                    format!("Du bist jetzt {}", data.roles[to_copy]),
+                )
                 .await;
-            data.ask(player, player_roles, extra_roles, ctx, receiver)
-                .await;
-            self.copied = Some((role.clone(), data));
+            behavior.ask(data, reactions, index).await;
+            self.copied = Some((data.roles[to_copy].clone(), behavior));
         }
     }
 
-    fn action<'a>(
-        &self,
-        player: &'a User,
-        player_roles: &mut HashMap<&'a User, Box<dyn Role>>,
-        extra_roles: &[Box<dyn Role>],
-        ctx: &Context,
-    ) {
-        if let Some((role, data)) = &self.copied {
-            player_roles.insert(&player, role.clone());
-            data.action(player, player_roles, extra_roles, ctx)
+    fn action<'a>(&mut self, data: &mut GameData<'a>, index: usize) {
+        if let Some((role, behavior)) = &mut self.copied {
+            data.roles[index] = role.clone();
+            behavior.action(data, index)
         }
     }
 
-    fn after(
-        &self,
-        player: &User,
-        player_roles: &mut HashMap<&User, Box<dyn Role>>,
-        extra_roles: &[Box<dyn Role>],
-        ctx: &Context,
+    async fn after<'a>(
+        &mut self,
+        data: &GameData<'a>,
+        reactions: &mut ReceiverStream<ReactionAction>,
+        index: usize,
     ) {
-        if let Some((_, c)) = &self.copied {
-            c.after(player, player_roles, extra_roles, ctx)
+        if let Some((_, c)) = &mut self.copied {
+            c.after(data, reactions, index).await
         }
     }
 

@@ -14,27 +14,28 @@ impl Display for Werwolf {
 }
 
 #[async_trait]
-impl RoleData for Werwolf {
-    async fn ask(
+impl RoleBehavior for Werwolf {
+    async fn ask<'a>(
         &mut self,
-        player: &User,
-        players: &HashMap<&User, Box<dyn Role>>,
-        extra_roles: &[Box<dyn Role>],
-        ctx: &Context,
-        _receiver: &mut ReceiverStream<ReactionAction>,
+        data: &GameData<'a>,
+        _reactions: &mut ReceiverStream<ReactionAction>,
+        index: usize,
     ) {
-        let mut others = players
+        let mut others = data
+            .roles
             .iter()
-            .filter(|(&other_user, role)| role.group() == Group::Wolf && other_user != player);
+            .enumerate()
+            .filter(|&(i, r)| r.group() == Group::Freimaurer && i != index);
 
         let content = match others.next() {
             Some((x, _)) => format!(
                 "Die anderen Werwölfe sind: {}",
-                iter::once(x.name.clone())
-                    .chain(others.map(|(u, _)| u.name.clone()))
+                iter::once(data.users[x].name.clone())
+                    .chain(others.map(|(u, _)| data.users[u].name.clone()))
                     .format(", ")
             ),
-            None => match extra_roles
+            None => match data
+                .extra_roles
                 .iter()
                 .filter(|r| r.group() != Group::Wolf)
                 .choose(&mut thread_rng())
@@ -44,7 +45,10 @@ impl RoleData for Werwolf {
             },
         };
 
-        player.dm(ctx, |m| m.content(content)).await.unwrap();
+        data.dm_channels[index]
+            .say(data.context, content)
+            .await
+            .unwrap();
     }
 
     fn team(&self) -> Team {

@@ -1,7 +1,5 @@
 use super::*;
 
-use crate::utils::MapExt;
-
 #[derive(Clone)]
 pub struct Unruhestifterin;
 
@@ -12,7 +10,7 @@ impl Display for Unruhestifterin {
 }
 
 impl Role for Unruhestifterin {
-    fn build(&self) -> Box<dyn RoleData> {
+    fn build(&self) -> Box<dyn RoleBehavior> {
         Box::new(UnruhestifterinData { to_swap: None })
     }
 
@@ -27,33 +25,30 @@ impl Role for Unruhestifterin {
 
 #[derive(Clone)]
 pub struct UnruhestifterinData {
-    to_swap: Option<(User, User)>,
+    to_swap: Option<(usize, usize)>,
 }
 
 #[async_trait]
-impl RoleData for UnruhestifterinData {
-    async fn ask(
+impl RoleBehavior for UnruhestifterinData {
+    async fn ask<'a>(
         &mut self,
-        player: &User,
-        players: &HashMap<&User, Box<dyn Role>>,
-        _extra_roles: &[Box<dyn Role>],
-        ctx: &Context,
-        receiver: &mut ReceiverStream<ReactionAction>,
+        data: &GameData<'a>,
+        reactions: &mut ReceiverStream<ReactionAction>,
+        index: usize,
     ) {
-        player
-            .dm(ctx, |m| m.content("Welche Spieler willst du tauschen?"))
+        data.dm_channels[index]
+            .say(data.context, "Welche Spieler willst du tauschen?")
             .await
-            .unwrap();
+            .expect("Error sending message");
 
-        let me = ctx.cache.current_user_id().await;
-
-        let others = players.keys().filter(|&&u| u != player);
+        let others = data.users.iter().enumerate().filter(|&(i, _)| i != index);
+        let me = data.context.cache.current_user_id().await;
 
         let messages = others
-            .map(move |&u| async move {
-                let msg = player
-                    .dm(ctx, |m| {
-                        m.content(u.name.clone());
+            .map(move |(u, _)| async move {
+                let msg = data.dm_channels[index]
+                    .send_message(data.context, |m| {
+                        m.content(data.users[u].name.clone());
                         m.1 = Some(vec!['🔁'.into()]);
                         m
                     })
@@ -66,15 +61,15 @@ impl RoleData for UnruhestifterinData {
             .collect::<HashMap<_, _>>()
             .await;
 
-        let mut to_swap = None::<&User>;
+        let mut to_swap = None::<usize>;
 
-        while let Some(r) = receiver.next().await {
-            if messages.contains_key(&r.inner().message_id) && r.inner().user_id.unwrap() != me {
+        while let Some(r) = reactions.next().await {
+            if r.inner().user_id.unwrap() != me {
                 if let Some(&target) = messages.get(&r.inner().message_id) {
                     match r {
                         ReactionAction::Added(_) => match to_swap {
                             Some(to_swap) if to_swap != target => {
-                                self.to_swap = Some((target.clone(), to_swap.clone()));
+                                self.to_swap = Some((target, to_swap));
                                 return;
                             }
                             None => to_swap = Some(target),
@@ -90,15 +85,9 @@ impl RoleData for UnruhestifterinData {
         }
     }
 
-    fn action<'a>(
-        &self,
-        _player: &'a User,
-        player_roles: &mut HashMap<&User, Box<dyn Role>>,
-        _extra_roles: &[Box<dyn Role>],
-        _ctx: &Context,
-    ) {
-        if let Some((x, y)) = &self.to_swap {
-            player_roles.swap(x, y);
+    fn action<'a>(&mut self, data: &mut GameData<'a>, _index: usize) {
+        if let Some((x, y)) = self.to_swap {
+            data.roles.swap(x, y);
         }
     }
 

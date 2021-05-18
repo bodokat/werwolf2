@@ -8,30 +8,28 @@ use super::*;
 pub struct Seherin;
 
 #[async_trait]
-impl RoleData for Seherin {
-    async fn ask(
+impl RoleBehavior for Seherin {
+    async fn ask<'a>(
         &mut self,
-        player: &User,
-        players: &HashMap<&User, Box<dyn Role>>,
-        extra_roles: &[Box<dyn Role>],
-        ctx: &Context,
-        receiver: &mut ReceiverStream<ReactionAction>,
+        data: &GameData<'a>,
+        reactions: &mut ReceiverStream<ReactionAction>,
+        index: usize,
     ) {
-        player
-            .dm(ctx, |m| m.content("Wesen Rolle willst du sehen?"))
+        data.dm_channels[index]
+            .say(data.context, "Wesen Rolle willst du sehen?")
             .await
-            .unwrap();
+            .expect("Error sending message");
 
-        let others = players.iter().filter(|(&u, _)| u != player);
-        let choices = others.map(|(&u, _)| Some(u)).chain(once(None));
+        let others = data.users.iter().enumerate().filter(|&(i, _)| i != index);
+        let choices = others.map(|(u, _)| Some(u)).chain(once(None));
 
-        let c = choice(
-            ctx,
-            receiver,
-            player.create_dm_channel(ctx).await.unwrap().id,
+        let c: Option<usize> = choice(
+            data.context,
+            reactions,
+            data.dm_channels[index].id,
             choices,
-            |x| match x {
-                Some(u) => u.name.clone(),
+            |&x| match x {
+                Some(u) => data.users[u].name.clone(),
                 None => "2 Karten aus der Mitte".to_string(),
             },
             '🔮'.into(),
@@ -41,27 +39,25 @@ impl RoleData for Seherin {
 
         match c {
             Some(u) => {
-                player
-                    .dm(ctx, |m| {
-                        m.content(format!(
-                            "{} hat die Rolle {}",
-                            u.name,
-                            players.get(u).expect("player not in map")
-                        ))
-                    })
+                data.dm_channels[index]
+                    .say(
+                        data.context,
+                        format!("{} hat die Rolle {}", data.users[u].name, data.roles[u]),
+                    )
                     .await
-                    .unwrap();
+                    .expect("Error sending message");
             }
             None => {
-                player
-                    .dm(ctx, |m| {
-                        m.content(format!(
+                data.dm_channels[index]
+                    .say(
+                        data.context,
+                        format!(
                             "2 Rollen in der Mitte sind: {}, {}",
-                            extra_roles[0], extra_roles[1]
-                        ))
-                    })
+                            data.extra_roles[0], data.extra_roles[1]
+                        ),
+                    )
                     .await
-                    .unwrap();
+                    .expect("Error sending message");
             }
         }
     }
