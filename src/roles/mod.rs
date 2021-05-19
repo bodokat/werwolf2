@@ -50,6 +50,16 @@ where
 
 #[async_trait]
 pub trait RoleBehavior: Display + Send + Sync {
+    async fn before_ask<'a>(
+        &mut self,
+        _data: &GameData<'a>,
+        _reactions: &mut ReceiverStream<ReactionAction>,
+        _index: usize,
+    ) {
+    }
+
+    fn before_action<'a>(&mut self, _data: &mut GameData<'a>, _index: usize) {}
+
     async fn ask<'a>(
         &mut self,
         _data: &GameData<'a>,

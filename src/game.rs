@@ -37,25 +37,40 @@ pub async fn start_game(
         Box::new(roles::Schlaflose),
     ];
 
-    let roles_string = roles.iter().join(" | ");
-
-    join_all(players.iter().map(|(player, _)| {
-        player.dm(ctx, |m| {
-            m.content(format!("Die Rollen sind:\n{}", roles_string))
-        })
-    }))
-    .await;
-
     let (mut data, mut behaviors, mut reactions) = setup(players, roles, ctx).await;
 
-    join_all(data.users.iter().zip(data.roles.iter()).map(|(u, role)| {
-        u.dm(ctx, move |m| {
-            m.content(format!("Deine Rolle ist: {}", role))
-        })
-    }))
+    let roles_string = data.roles.iter().join(" | ");
+
+    join_all(
+        data.dm_channels
+            .iter()
+            .map(|c| c.say(data.context, format!("Die Rollen sind:\n{}", roles_string))),
+    )
+    .await;
+
+    join_all(
+        data.dm_channels
+            .iter()
+            .zip(data.roles.iter())
+            .map(|(c, role)| c.say(data.context, format!("Deine Rolle ist: {}", role))),
+    )
     .await;
 
     // --- Action
+
+    behaviors
+        .iter_mut()
+        .zip(reactions.iter_mut())
+        .enumerate()
+        .map(|(idx, (behavior, reactions))| behavior.before_ask(&data, reactions, idx))
+        .collect::<FuturesUnordered<_>>()
+        .for_each(|_| ready(()))
+        .await;
+
+    behaviors
+        .iter_mut()
+        .enumerate()
+        .for_each(|(idx, behavior)| behavior.before_action(&mut data, idx));
 
     behaviors
         .iter_mut()
@@ -83,9 +98,9 @@ pub async fn start_game(
     // --- Voting
 
     join_all(
-        data.users
+        data.dm_channels
             .iter()
-            .map(|u| u.dm(ctx, |m| m.content("Voting started"))),
+            .map(|c| c.say(data.context, "Voting started")),
     )
     .await;
 
@@ -122,7 +137,7 @@ pub async fn start_game(
                 .join("\n")
         );
         let content = &content;
-        join_all(data.users.iter().map(|p| p.dm(ctx, |m| m.content(content)))).await;
+        join_all(data.dm_channels.iter().map(|p| p.say(ctx, content))).await;
     }
 
     let mut skipped = false;
@@ -167,7 +182,7 @@ pub async fn start_game(
             )
         };
         let content = &content;
-        join_all(data.users.iter().map(|p| p.dm(ctx, |m| m.content(content)))).await;
+        join_all(data.dm_channels.iter().map(|p| p.say(ctx, content))).await;
     }
 
     let has_werewolf = data.roles.iter().any(|role| role.group() == Group::Wolf);
@@ -195,7 +210,7 @@ pub async fn start_game(
             Team::Dorf => "Das Dorf hat gewonnen",
             Team::Wolf => "Die Werwölfe haben gewonnen",
         };
-        join_all(data.users.iter().map(|u| u.dm(ctx, |m| m.content(content)))).await;
+        join_all(data.dm_channels.iter().map(|p| p.say(ctx, content))).await;
     }
 
     {
@@ -213,15 +228,10 @@ pub async fn start_game(
             .join(", ");
 
         let content = &format!("Die Gewinner sind: {}", winners);
-        join_all(data.users.iter().map(|u| u.dm(ctx, |m| m.content(content)))).await;
+        join_all(data.dm_channels.iter().map(|p| p.say(ctx, content))).await;
     }
 
-    join_all(
-        data.users
-            .iter()
-            .map(|u| u.dm(ctx, |m| m.content("----------------"))),
-    )
-    .await;
+    join_all(data.dm_channels.iter().map(|p| p.say(ctx, "-------------"))).await;
 
     Ok(())
 }

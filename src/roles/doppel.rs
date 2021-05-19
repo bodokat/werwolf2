@@ -37,7 +37,7 @@ impl Display for DoppelData {
 
 #[async_trait]
 impl RoleBehavior for DoppelData {
-    async fn ask<'a>(
+    async fn before_ask<'a>(
         &mut self,
         data: &GameData<'a>,
         reactions: &mut ReceiverStream<ReactionAction>,
@@ -61,21 +61,36 @@ impl RoleBehavior for DoppelData {
         .await;
 
         if let Some((to_copy, _)) = to_copy {
-            let mut behavior = data.roles[to_copy].build();
+            let behavior = data.roles[to_copy].build();
             let _ = data.dm_channels[index]
                 .say(
                     data.context,
                     format!("Du bist jetzt {}", data.roles[to_copy]),
                 )
                 .await;
-            behavior.ask(data, reactions, index).await;
             self.copied = Some((data.roles[to_copy].clone(), behavior));
         }
     }
 
-    fn action<'a>(&mut self, data: &mut GameData<'a>, index: usize) {
-        if let Some((role, behavior)) = &mut self.copied {
+    fn before_action<'a>(&mut self, data: &mut GameData<'a>, index: usize) {
+        if let Some((role, _)) = &mut self.copied {
             data.roles[index] = role.clone();
+        }
+    }
+
+    async fn ask<'a>(
+        &mut self,
+        data: &GameData<'a>,
+        reactions: &mut ReceiverStream<ReactionAction>,
+        index: usize,
+    ) {
+        if let Some((_, behavior)) = &mut self.copied {
+            behavior.ask(data, reactions, index).await
+        }
+    }
+
+    fn action<'a>(&mut self, data: &mut GameData<'a>, index: usize) {
+        if let Some((_, behavior)) = &mut self.copied {
             behavior.action(data, index)
         }
     }
