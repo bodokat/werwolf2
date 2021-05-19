@@ -16,5 +16,5 @@ tokio-stream = "0.1"
 
 
 [dependencies.serenity]
-version = "0.10"
+version = "0.10.7"
 features = ["unstable_discord_api"]

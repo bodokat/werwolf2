@@ -1,3 +1,5 @@
 /target
+.vscode
 .env
-TODO
+src/controller.rs
+create_slash_commands.ts
