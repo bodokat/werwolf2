@@ -32,7 +32,7 @@ impl RoleBehavior for Gunstling {
         data.dm_channels[index]
             .say(data.context, content)
             .await
-            .unwrap();
+            .expect("error sending message");
     }
 
     fn team(&self) -> Team {

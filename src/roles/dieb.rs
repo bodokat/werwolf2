@@ -55,18 +55,22 @@ impl RoleBehavior for DiebData {
     fn action<'a>(&mut self, data: &mut GameData<'a>, index: usize) {
         if let Some(to_steal) = self.to_steal {
             data.roles.swap(index, to_steal);
-            let ctx = data.context.clone();
-            let player_id = data.users[index].id;
+        }
+    }
+
+    async fn after<'a>(
+        &mut self,
+        data: &GameData<'a>,
+        _reactions: &mut ReceiverStream<ReactionAction>,
+        index: usize,
+    ) {
+        if let Some(to_steal) = self.to_steal {
             let name = data.users[to_steal].name.clone();
             let new_role = data.roles[index].to_string();
-            tokio::spawn(async move {
-                let _ = player_id
-                    .create_dm_channel(&ctx)
-                    .await
-                    .unwrap()
-                    .say(&ctx, format!("{} war {}", name, new_role))
-                    .await;
-            });
+            data.dm_channels[index]
+                .say(data.context, format!("{} war {}", name, new_role))
+                .await
+                .expect("error sending message");
         }
     }
 

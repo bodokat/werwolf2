@@ -62,12 +62,13 @@ impl RoleBehavior for DoppelData {
 
         if let Some((to_copy, _)) = to_copy {
             let behavior = data.roles[to_copy].build();
-            let _ = data.dm_channels[index]
+            data.dm_channels[index]
                 .say(
                     data.context,
                     format!("Du bist jetzt {}", data.roles[to_copy]),
                 )
-                .await;
+                .await
+                .expect("error sending message");
             self.copied = Some((data.roles[to_copy].clone(), behavior));
         }
     }
