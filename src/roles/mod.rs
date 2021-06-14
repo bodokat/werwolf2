@@ -2,12 +2,12 @@
 
 use async_trait::async_trait;
 use dyn_clone::DynClone;
-use futures::{stream::FuturesUnordered, StreamExt};
 use itertools::Itertools;
-use std::{collections::HashMap, fmt::Display};
+use serenity::model::interactions::Interaction;
+use std::fmt::Display;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::{controller::ReactionAction, game::GameData};
+use crate::game::GameData;
 
 #[derive(PartialEq, Eq)]
 pub enum Team {
@@ -53,7 +53,7 @@ pub trait RoleBehavior: Display + Send + Sync {
     async fn before_ask<'a>(
         &mut self,
         _data: &GameData<'a>,
-        _reactions: &mut ReceiverStream<ReactionAction>,
+        _reactions: &mut ReceiverStream<Interaction>,
         _index: usize,
     ) {
     }
@@ -63,7 +63,7 @@ pub trait RoleBehavior: Display + Send + Sync {
     async fn ask<'a>(
         &mut self,
         _data: &GameData<'a>,
-        _reactions: &mut ReceiverStream<ReactionAction>,
+        _reactions: &mut ReceiverStream<Interaction>,
         _index: usize,
     ) {
     }
@@ -73,7 +73,7 @@ pub trait RoleBehavior: Display + Send + Sync {
     async fn after<'a>(
         &mut self,
         _data: &GameData<'a>,
-        _reactions: &mut ReceiverStream<ReactionAction>,
+        _reactions: &mut ReceiverStream<Interaction>,
         _index: usize,
     ) {
     }

@@ -10,7 +10,7 @@ impl RoleBehavior for Gunstling {
     async fn ask<'a>(
         &mut self,
         data: &GameData<'a>,
-        _reactions: &mut ReceiverStream<ReactionAction>,
+        _reactions: &mut ReceiverStream<Interaction>,
         index: usize,
     ) {
         let mut wolves = data

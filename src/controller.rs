@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use serenity::{
     client::{Context, EventHandler},
     model::{
-        channel::{ChannelType, Message, Reaction},
+        channel::{ChannelType, Message},
         id::{GuildId, UserId},
-        interactions::{Interaction, InteractionResponseType},
+        interactions::{self, ButtonStyle, Interaction, InteractionResponseType},
         prelude::User,
     },
 };
@@ -18,20 +18,6 @@ use crate::{
     lobby::{Lobby, LobbyMessage},
     PREFIX,
 };
-
-#[derive(Debug)]
-pub enum ReactionAction {
-    Added(Reaction),
-    Removed(Reaction),
-}
-
-impl ReactionAction {
-    pub fn inner(&self) -> &Reaction {
-        match self {
-            ReactionAction::Added(inner) | ReactionAction::Removed(inner) => inner,
-        }
-    }
-}
 
 #[derive(Default)]
 pub struct Controller {
@@ -47,100 +33,137 @@ impl Controller {
 
 #[async_trait]
 impl EventHandler for Controller {
-    async fn reaction_add(&self, _ctx: Context, add_reaction: Reaction) {
-        if let Some(id) = add_reaction.user_id {
-            if let Some(lobby) = self.messengers.read().await.get(&id) {
-                let _ = lobby
-                    .0
-                    .try_send(LobbyMessage::Reaction(ReactionAction::Added(add_reaction)));
-            }
-        }
-    }
-    async fn reaction_remove(&self, _ctx: Context, removed_reaction: Reaction) {
-        if let Some(id) = removed_reaction.user_id {
-            if let Some(lobby) = self.messengers.read().await.get(&id) {
-                let _ = lobby
-                    .0
-                    .try_send(LobbyMessage::Reaction(ReactionAction::Removed(
-                        removed_reaction,
-                    )));
-            }
-        }
-    }
-
     async fn interaction_create(&self, ctx: Context, mut interaction: Interaction) {
-        if let Some(x) = &interaction.data {
-            match x.name.as_str() {
-                "ping" => interaction
-                    .create_interaction_response(ctx, |r| {
-                        r.kind(InteractionResponseType::ChannelMessageWithSource);
-                        r.interaction_response_data(|m| m.content("Pong"))
-                    })
-                    .await
-                    .expect("Error sending message"),
-                "join" => {
-                    interaction
-                        .create_interaction_response(&ctx, |r| {
-                            r.kind(InteractionResponseType::DeferredChannelMessageWithSource)
+        match &interaction.data {
+            Some(interactions::InteractionData::ApplicationCommand(data)) => {
+                match data.name.as_str() {
+                    "ping" => interaction
+                        .create_interaction_response(ctx, |r| {
+                            r.kind(InteractionResponseType::ChannelMessageWithSource);
+                            r.interaction_response_data(|m| m.content("Pong"))
                         })
                         .await
-                        .expect("Error sending interaction response");
-                    let guild_id = match interaction.guild_id {
-                        Some(id) => id,
-                        None => {
-                            interaction
-                                .edit_original_interaction_response(&ctx, |m| {
-                                    m.content("Du kannst nur aus Server-Kanälen joinen")
+                        .expect("Error sending message"),
+                    "join" => {
+                        interaction
+                            .create_interaction_response(&ctx, |r| {
+                                r.kind(InteractionResponseType::DeferredChannelMessageWithSource)
+                            })
+                            .await
+                            .expect("Error sending interaction response");
+                        let guild_id = match interaction.guild_id {
+                            Some(id) => id,
+                            None => {
+                                interaction
+                                    .edit_original_interaction_response(&ctx, |m| {
+                                        m.content("Du kannst nur aus Server-Kanälen joinen")
+                                    })
+                                    .await
+                                    .expect("Error sending interaction response");
+                                return;
+                            }
+                        };
+                        let user = interaction.member.take().unwrap().user;
+                        let user_name = user.name.clone();
+                        self.join(guild_id, user, &ctx).await;
+                        interaction
+                            .edit_original_interaction_response(&ctx, |m| {
+                                m.content(format!("Willkommen in der Lobby, {}", user_name,))
+                            })
+                            .await
+                            .expect("Error sending interaction response");
+                    }
+                    "joinall" => {
+                        interaction
+                            .create_interaction_response(&ctx, |r| {
+                                r.kind(InteractionResponseType::DeferredChannelMessageWithSource)
+                            })
+                            .await
+                            .expect("Error sending interaction response");
+                        let guild_id = match interaction.guild_id {
+                            Some(id) => id,
+                            None => {
+                                interaction
+                                    .edit_original_interaction_response(&ctx, |m| {
+                                        m.content("Du kannst nur aus Server-Kanälen joinen")
+                                    })
+                                    .await
+                                    .expect("Error sending interaction response");
+                                return;
+                            }
+                        };
+                        self.join_all(guild_id, interaction.member.unwrap().user, &ctx)
+                            .await;
+                    }
+                    "leave" => {
+                        let user = match interaction.member {
+                            Some(x) => x.user,
+                            None => interaction.user.unwrap(),
+                        };
+                        self.leave(user).await;
+                    }
+                    "start" => {
+                        self.start(interaction.guild_id.unwrap()).await;
+                    }
+                    "button" => {
+                        interaction
+                            .create_interaction_response(&ctx, |c| {
+                                c.kind(InteractionResponseType::ChannelMessageWithSource);
+                                c.interaction_response_data(|m| {
+                                    m.content("Choose one!");
+                                    m.components(|c| {
+                                        c.create_action_row(|a| {
+                                            a.create_button(|b| {
+                                                b.label("Hello");
+                                                b.style(ButtonStyle::Primary);
+                                                b.custom_id("hello")
+                                            });
+                                            a.create_button(|b| {
+                                                b.label("Delete");
+                                                b.style(ButtonStyle::Danger);
+                                                b.custom_id("delete")
+                                            })
+                                        })
+                                    })
                                 })
-                                .await
-                                .expect("Error sending interaction response");
-                            return;
-                        }
-                    };
-                    let user = interaction.member.take().unwrap().user;
-                    let user_name = user.name.clone();
-                    self.join(guild_id, user, &ctx).await;
-                    interaction
-                        .edit_original_interaction_response(&ctx, |m| {
-                            m.content(format!("Willkommen in der Lobby, {}", user_name,))
-                        })
-                        .await
-                        .expect("Error sending interaction response");
+                            })
+                            .await
+                            .expect("Error sending response");
+                    }
+                    _ => (),
                 }
-                "joinall" => {
-                    interaction
-                        .create_interaction_response(&ctx, |r| {
-                            r.kind(InteractionResponseType::DeferredChannelMessageWithSource)
-                        })
-                        .await
-                        .expect("Error sending interaction response");
-                    let guild_id = match interaction.guild_id {
-                        Some(id) => id,
-                        None => {
-                            interaction
-                                .edit_original_interaction_response(&ctx, |m| {
-                                    m.content("Du kannst nur aus Server-Kanälen joinen")
-                                })
-                                .await
-                                .expect("Error sending interaction response");
-                            return;
-                        }
-                    };
-                    self.join_all(guild_id, interaction.member.unwrap().user, &ctx)
-                        .await;
-                }
-                "leave" => {
-                    let user = match interaction.member {
-                        Some(x) => x.user,
-                        None => interaction.user.unwrap(),
-                    };
-                    self.leave(user).await;
-                }
-                "start" => {
-                    self.start(interaction.guild_id.unwrap()).await;
-                }
-                _ => (),
             }
+            Some(interactions::InteractionData::MessageComponent(data)) => {
+                if let Some(user) = interaction.user.as_ref() {
+                    if let Some(lobby) = self.messengers.read().await.get(&user.id) {
+                        let _ = lobby.0.try_send(LobbyMessage::Interaction(interaction));
+                        return;
+                    }
+                }
+
+                match data.custom_id.as_str() {
+                    "hello" => {
+                        interaction
+                            .create_interaction_response(&ctx, |r| {
+                                r.kind(InteractionResponseType::UpdateMessage);
+                                r.interaction_response_data(|d| d.content("Hi :)"))
+                            })
+                            .await
+                            .expect("Error editing message");
+                    }
+                    "delete" => {
+                        match interaction.message.unwrap() {
+                            interactions::InteractionMessage::Regular(m) => m,
+                            interactions::InteractionMessage::Ephemeral(_) => return,
+                        }
+                        .delete(&ctx)
+                        .await
+                        .expect("Error delting message");
+                    }
+                    _ => (),
+                }
+            }
+            None => (),
         }
     }
 

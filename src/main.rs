@@ -20,6 +20,7 @@ async fn main() {
     let token = std::env::var("TOKEN").expect("No Token in environment");
     let mut client = Client::builder(token)
         .event_handler(Controller::new())
+        .application_id(775071223083696188)
         .await
         .expect("Error creating client");
 

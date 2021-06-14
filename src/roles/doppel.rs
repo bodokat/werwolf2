@@ -40,23 +40,18 @@ impl RoleBehavior for DoppelData {
     async fn before_ask<'a>(
         &mut self,
         data: &GameData<'a>,
-        reactions: &mut ReceiverStream<ReactionAction>,
+        reactions: &mut ReceiverStream<Interaction>,
         index: usize,
     ) {
-        data.users[index]
-            .dm(data.context, |m| m.content("Wen willst du kopieren?"))
-            .await
-            .expect("error sending message");
-
         let others = data.users.iter().enumerate().filter(|&(i, _)| i != index);
 
         let to_copy = choice(
             data.context,
             reactions,
             data.dm_channels[index].id,
+            "Wen willst du kopieren?",
             others,
             |(_, u)| u.name.clone(),
-            '🤚'.into(),
         )
         .await;
 
@@ -82,7 +77,7 @@ impl RoleBehavior for DoppelData {
     async fn ask<'a>(
         &mut self,
         data: &GameData<'a>,
-        reactions: &mut ReceiverStream<ReactionAction>,
+        reactions: &mut ReceiverStream<Interaction>,
         index: usize,
     ) {
         if let Some((_, behavior)) = &mut self.copied {
@@ -99,7 +94,7 @@ impl RoleBehavior for DoppelData {
     async fn after<'a>(
         &mut self,
         data: &GameData<'a>,
-        reactions: &mut ReceiverStream<ReactionAction>,
+        reactions: &mut ReceiverStream<Interaction>,
         index: usize,
     ) {
         if let Some((_, c)) = &mut self.copied {

@@ -1,31 +1,26 @@
 use futures::{
     future::{join_all, ready},
+    pin_mut,
     stream::FuturesOrdered,
 };
 use itertools::Itertools;
 use rand::prelude::*;
 use serenity::{
-    framework::standard::CommandResult,
     futures::stream::{FuturesUnordered, StreamExt},
     model::{
-        channel::{PrivateChannel, ReactionType},
+        channel::PrivateChannel,
         id::ChannelId,
+        interactions::{Interaction, InteractionData},
         prelude::User,
     },
     prelude::*,
 };
-use std::collections::HashMap;
+
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::{
-    controller::ReactionAction,
-    roles::{self, Group, Role, RoleBehavior, Team},
-};
+use crate::roles::{self, Group, Role, RoleBehavior, Team};
 
-pub async fn start_game(
-    ctx: &Context,
-    players: Vec<(&User, ReceiverStream<ReactionAction>)>,
-) -> CommandResult {
+pub async fn start_game(ctx: &Context, players: Vec<(&User, ReceiverStream<Interaction>)>) {
     let roles: Vec<Box<dyn Role>> = vec![
         Box::new(roles::Doppel),
         Box::new(roles::Werwolf),
@@ -113,9 +108,9 @@ pub async fn start_game(
                 ctx,
                 receiver,
                 channel.id,
+                "Wähle einen Mitspieler",
                 0..users.len(),
                 |&idx| users[idx].name.clone(),
-                '✅'.into(),
             )
             .await
         })
@@ -232,8 +227,6 @@ pub async fn start_game(
     }
 
     join_all(data.dm_channels.iter().map(|p| p.say(ctx, "-------------"))).await;
-
-    Ok(())
 }
 
 pub struct GameData<'a> {
@@ -245,13 +238,13 @@ pub struct GameData<'a> {
 }
 
 async fn setup<'a>(
-    mut players: Vec<(&'a User, ReceiverStream<ReactionAction>)>,
+    mut players: Vec<(&'a User, ReceiverStream<Interaction>)>,
     mut player_roles: Vec<Box<dyn Role>>,
     ctx: &'a Context,
 ) -> (
     GameData<'a>,
     Vec<Box<dyn RoleBehavior>>,
-    Vec<ReceiverStream<ReactionAction>>,
+    Vec<ReceiverStream<Interaction>>,
 ) {
     assert!(player_roles.len() >= players.len());
 
@@ -292,62 +285,56 @@ async fn setup<'a>(
     )
 }
 
-pub async fn choice<T, F, S: ToString>(
+pub async fn choice<T, F, D: ToString, S: ToString>(
     ctx: &Context,
-    receiver: &mut ReceiverStream<ReactionAction>,
+    receiver: &mut ReceiverStream<Interaction>,
     channel: ChannelId,
+    title: D,
     choices: impl Iterator<Item = T>,
     name: F,
-    reaction: ReactionType,
 ) -> Option<T>
 where
     F: Fn(&T) -> S,
 {
-    let me = ctx.cache.current_user_id().await;
+    let mut choices: Vec<T> = choices.collect();
 
-    let (name, reaction) = (&name, &reaction);
-    let mut messages = choices
-        .map(move |x| async move {
-            let msg = channel
-                .send_message(ctx, |m| {
-                    m.content(name(&x));
-                    m.1 = Some(vec![reaction.clone()]);
-                    m
-                })
-                .await;
-            match msg {
-                Ok(msg) => Some((msg.id, x)),
-                Err(e) => {
-                    println!("Error sending message: {}", e);
-                    None
-                }
-            }
-        })
-        .collect::<FuturesUnordered<_>>()
-        .filter_map(ready)
-        .collect::<HashMap<_, _>>()
-        .await;
-
-    let mut result = None;
-
-    while let Some(r) = receiver.next().await {
-        if messages.contains_key(&r.inner().message_id) && r.inner().user_id.unwrap() != me {
-            result = Some(r);
-            break;
+    let stream = receiver.filter_map(|i| async {
+        if let Some(InteractionData::MessageComponent(data)) = i.data {
+            Some(
+                data.custom_id
+                    .parse::<usize>()
+                    .expect("Error parsing custom_id"),
+            )
+        } else {
+            None
         }
-    }
+    });
 
-    let result = match result {
-        Some(r) => messages.remove(&r.inner().message_id),
-        None => None,
-    };
+    channel
+        .send_message(&ctx, |m| {
+            m.content(title);
+            m.components(|c| {
+                let chunks = choices.iter().enumerate().chunks(5);
+                chunks.into_iter().for_each(|chunk| {
+                    c.create_action_row(|a| {
+                        chunk.for_each(|(index, choice)| {
+                            a.create_button(|b| {
+                                b.label(name(choice));
+                                b.custom_id(index.to_string());
+                                b.style(serenity::model::interactions::ButtonStyle::Primary)
+                            });
+                        });
+                        a
+                    });
+                });
+                c
+            })
+        })
+        .await
+        .expect("Error sending message");
 
-    messages
-        .keys()
-        .map(|m| channel.delete_message(ctx, m))
-        .collect::<FuturesUnordered<_>>()
-        .for_each(|_| ready(()))
-        .await;
+    let stream = stream.map(move |n| choices.remove(n));
+    pin_mut!(stream);
 
-    result
+    stream.next().await
 }

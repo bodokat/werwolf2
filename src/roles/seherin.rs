@@ -12,14 +12,9 @@ impl RoleBehavior for Seherin {
     async fn ask<'a>(
         &mut self,
         data: &GameData<'a>,
-        reactions: &mut ReceiverStream<ReactionAction>,
+        reactions: &mut ReceiverStream<Interaction>,
         index: usize,
     ) {
-        data.dm_channels[index]
-            .say(data.context, "Wesen Rolle willst du sehen?")
-            .await
-            .expect("Error sending message");
-
         let others = data.users.iter().enumerate().filter(|&(i, _)| i != index);
         let choices = others.map(|(u, _)| Some(u)).chain(once(None));
 
@@ -27,12 +22,12 @@ impl RoleBehavior for Seherin {
             data.context,
             reactions,
             data.dm_channels[index].id,
+            "Wesen Rolle willst du sehen?",
             choices,
             |&x| match x {
                 Some(u) => data.users[u].name.clone(),
                 None => "2 Karten aus der Mitte".to_string(),
             },
-            '🔮'.into(),
         )
         .await
         .flatten();

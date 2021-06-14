@@ -8,7 +8,7 @@ impl RoleBehavior for Schlaflose {
     async fn after<'a>(
         &mut self,
         data: &GameData<'a>,
-        _reactions: &mut ReceiverStream<ReactionAction>,
+        _reactions: &mut ReceiverStream<Interaction>,
         index: usize,
     ) {
         data.dm_channels[index]

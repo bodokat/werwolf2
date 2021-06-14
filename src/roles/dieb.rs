@@ -29,23 +29,18 @@ impl RoleBehavior for DiebData {
     async fn ask<'a>(
         &mut self,
         data: &GameData<'a>,
-        reactions: &mut ReceiverStream<ReactionAction>,
+        reactions: &mut ReceiverStream<Interaction>,
         index: usize,
     ) {
-        data.users[index]
-            .dm(data.context, |m| m.content("Mit wem willst du tauschen?"))
-            .await
-            .expect("error sending message");
-
         let others = data.users.iter().enumerate().filter(|&(i, _)| i != index);
 
         let to_steal = choice(
             data.context,
             reactions,
             data.dm_channels[index].id,
+            "Mit wem willst du tauschen?",
             others,
             |(_, u)| u.name.clone(),
-            '🤚'.into(),
         )
         .await;
 
@@ -61,7 +56,7 @@ impl RoleBehavior for DiebData {
     async fn after<'a>(
         &mut self,
         data: &GameData<'a>,
-        _reactions: &mut ReceiverStream<ReactionAction>,
+        _reactions: &mut ReceiverStream<Interaction>,
         index: usize,
     ) {
         if let Some(to_steal) = self.to_steal {

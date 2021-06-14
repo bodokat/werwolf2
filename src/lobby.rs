@@ -1,17 +1,20 @@
 use std::collections::{HashMap, HashSet};
 
 use futures::{future::select, pin_mut};
-use serenity::{client::Context, model::user::User};
+use serenity::{
+    client::Context,
+    model::{interactions::Interaction, user::User},
+};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::{controller::ReactionAction, game::start_game};
+use crate::game::start_game;
 
 #[derive(Clone)]
 pub struct Lobby(pub mpsc::Sender<LobbyMessage>);
 
 pub enum LobbyMessage {
-    Reaction(ReactionAction),
+    Interaction(Interaction),
     Join(User),
     Leave(User),
     Start,
@@ -37,7 +40,7 @@ impl Lobby {
 async fn lobby_loop(ctx: Context, mut data: LobbyData, mut rx: mpsc::Receiver<LobbyMessage>) {
     'outer: while let Some(msg) = rx.recv().await {
         match msg {
-            LobbyMessage::Reaction(_) => (),
+            LobbyMessage::Interaction(_) => (),
             LobbyMessage::Join(u) => {
                 data.players.insert(u);
             }
@@ -67,10 +70,9 @@ async fn lobby_loop(ctx: Context, mut data: LobbyData, mut rx: mpsc::Receiver<Lo
                         futures::future::Either::Left(_) => {
                             break;
                         }
-                        futures::future::Either::Right((Some(LobbyMessage::Reaction(r)), _)) => {
-                            if let Some(sender) = r.inner().user_id.and_then(|id| senders.get(&id))
-                            {
-                                let _ = sender.try_send(r);
+                        futures::future::Either::Right((Some(LobbyMessage::Interaction(i)), _)) => {
+                            if let Some(sender) = i.user.as_ref().and_then(|u| senders.get(&u.id)) {
+                                let _ = sender.try_send(i);
                             }
                         }
                         futures::future::Either::Right((None, _)) => {
