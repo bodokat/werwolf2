@@ -3,15 +3,28 @@ authors = ["Bodokat <bod.kato@gmail.com>"]
 edition = "2018"
 name = "werwolf"
 version = "0.1.0"
+default-run = "werwolf"
+
+[[bin]]
+name = "gen-ts"
+path = "src/gen_ts.rs"
 
 [dependencies]
+axum = {version = "0.6.1", features = ["ws"]}
+axum-extra = { version = "0.4.0-rc.2", features = ["spa"] }
+schemars = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
 async-trait = "0.1"
 dotenv = "0.15"
 dyn-clone = "1.0"
 futures = "0.3"
 itertools = "0.10.0"
-rand = "0.8"
-tokio = { version = "1.6", features = ["rt-multi-thread"] }
+rand = "0.8.5"
+tokio = { version = "1.6", features = ["full"] }
 tokio-stream = "0.1"
 
 

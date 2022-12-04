@@ -10,21 +10,34 @@ mod utils;
 
 use controller::Controller;
 
-pub const PREFIX: &str = "!";
+use std::net::SocketAddr;
+
+use axum_extra::routing::SpaRouter;
+use futures::SinkExt;
+
+use axum::Router;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+mod chat;
+pub mod message;
 
 #[tokio::main]
 async fn main() {
-    dotenv::dotenv().expect("failed to load .env");
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::new(
+            std::env::var("RUST_LOG").unwrap_or_else(|_| "werwolf=trace".into()),
+        ))
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 
-    // Login with a bot token from the environment
-    let token = std::env::var("TOKEN").expect("No Token in environment");
-    let mut client = Client::builder(token)
-        .event_handler(Controller::new())
-        .application_id(775071223083696188)
+    let app = Router::new()
+        .nest("/chat", chat::router())
+        .merge(SpaRouter::new("/", "web/build"));
+
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    tracing::debug!("listening on http://{addr}");
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
         .await
-        .expect("Error creating client");
-
-    if let Err(why) = client.start().await {
-        println!("An error occurred while running the client: {:?}", why);
-    }
+        .unwrap();
 }
