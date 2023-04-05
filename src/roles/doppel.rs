@@ -1,5 +1,3 @@
-use crate::game::choice;
-
 use super::*;
 
 #[derive(Clone)]
@@ -17,6 +15,10 @@ impl Role for Doppel {
     fn group(&self) -> Group {
         Group::Wolf
     }
+
+    fn name(&self) -> String {
+        "Doppelgängerin".into()
+    }
 }
 
 impl Display for Doppel {
@@ -26,7 +28,7 @@ impl Display for Doppel {
 }
 
 pub struct DoppelData {
-    copied: Option<(Box<dyn Role>, Box<dyn RoleBehavior>)>,
+    copied: Option<(&'static dyn Role, Box<dyn RoleBehavior>)>,
 }
 
 impl Display for DoppelData {
@@ -37,51 +39,35 @@ impl Display for DoppelData {
 
 #[async_trait]
 impl RoleBehavior for DoppelData {
-    async fn before_ask<'a>(
-        &mut self,
-        data: &GameData<'a>,
-        reactions: &mut ReceiverStream<Interaction>,
-        index: usize,
-    ) {
-        let others = data.users.iter().enumerate().filter(|&(i, _)| i != index);
+    async fn before_ask<'a>(&mut self, data: &GameData<'a>, index: usize) {
+        let others = data
+            .players
+            .iter()
+            .enumerate()
+            .filter(|&(i, _)| i != index)
+            .collect::<Vec<_>>();
 
-        let to_copy = choice(
-            data.context,
-            reactions,
-            data.dm_channels[index].id,
-            "Wen willst du kopieren?",
-            others,
-            |(_, u)| u.name.clone(),
-        )
-        .await;
+        let to_copy = data.players[index]
+            .choice(
+                "Wen willst du kopieren?".into(),
+                others.iter().map(|(_, u)| u.name.clone()).collect(),
+            )
+            .await;
 
-        if let Some((to_copy, _)) = to_copy {
-            let behavior = data.roles[to_copy].build();
-            data.dm_channels[index]
-                .say(
-                    data.context,
-                    format!("Du bist jetzt {}", data.roles[to_copy]),
-                )
-                .await
-                .expect("error sending message");
-            self.copied = Some((data.roles[to_copy].clone(), behavior));
-        }
+        let behavior = data.roles[to_copy].build();
+        data.players[index].say(format!("Du bist jetzt {}", data.roles[to_copy]));
+        self.copied = Some((data.roles[to_copy].clone(), behavior));
     }
 
     fn before_action<'a>(&mut self, data: &mut GameData<'a>, index: usize) {
-        if let Some((role, _)) = &mut self.copied {
-            data.roles[index] = role.clone();
+        if let Some((role, _)) = self.copied {
+            data.roles[index] = role;
         }
     }
 
-    async fn ask<'a>(
-        &mut self,
-        data: &GameData<'a>,
-        reactions: &mut ReceiverStream<Interaction>,
-        index: usize,
-    ) {
+    async fn ask<'a>(&mut self, data: &GameData<'a>, index: usize) {
         if let Some((_, behavior)) = &mut self.copied {
-            behavior.ask(data, reactions, index).await
+            behavior.ask(data, index).await
         }
     }
 
@@ -91,22 +77,9 @@ impl RoleBehavior for DoppelData {
         }
     }
 
-    async fn after<'a>(
-        &mut self,
-        data: &GameData<'a>,
-        reactions: &mut ReceiverStream<Interaction>,
-        index: usize,
-    ) {
+    async fn after<'a>(&mut self, data: &GameData<'a>, index: usize) {
         if let Some((_, c)) = &mut self.copied {
-            c.after(data, reactions, index).await
+            c.after(data, index).await
         }
-    }
-
-    fn team(&self) -> Team {
-        Team::Dorf
-    }
-
-    fn group(&self) -> Group {
-        Group::Mensch
     }
 }

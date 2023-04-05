@@ -5,7 +5,6 @@ mod message;
 
 use message::{ToClient, ToServer};
 
-#[allow(dead_code)]
 fn main() -> std::io::Result<()> {
     let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("schemas");
     let e = std::fs::DirBuilder::new().create(&dir);

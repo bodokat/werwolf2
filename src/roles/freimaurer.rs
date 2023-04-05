@@ -1,6 +1,8 @@
-use std::iter;
+use itertools::Itertools;
 
 use super::*;
+use std::any::Any;
+use std::iter;
 
 #[derive(Clone, Default)]
 pub struct Freimaurer;
@@ -11,41 +13,43 @@ impl Display for Freimaurer {
     }
 }
 
+impl Role for Freimaurer {
+    fn build(&self) -> Box<dyn RoleBehavior> {
+        Box::new(Freimaurer)
+    }
+
+    fn team(&self) -> Team {
+        Team::Dorf
+    }
+
+    fn group(&self) -> Group {
+        Group::Mensch
+    }
+
+    fn name(&self) -> String {
+        "Freimaurer".into()
+    }
+}
+
 #[async_trait]
 impl RoleBehavior for Freimaurer {
-    async fn ask<'a>(
-        &mut self,
-        data: &GameData<'a>,
-        _reactions: &mut ReceiverStream<Interaction>,
-        index: usize,
-    ) {
+    async fn ask<'a>(&mut self, data: &GameData<'a>, index: usize) {
         let mut others = data
             .roles
             .iter()
             .enumerate()
-            .filter(|&(_, r)| r.group() == Group::Freimaurer);
+            .filter(|&(_, &r)| (*r).type_id() == Freimaurer.type_id());
 
         let content = match others.next() {
             Some((x, _)) => format!(
                 "Die anderen Freimaurer sind: {}",
-                iter::once(data.users[x].name.clone())
-                    .chain(others.map(|(u, _)| data.users[u].name.clone()))
+                iter::once(data.players[x].name.clone())
+                    .chain(others.map(|(u, _)| data.players[u].name.clone()))
                     .format(", ")
             ),
             None => "Du bist alleine.".to_string(),
         };
 
-        data.dm_channels[index]
-            .say(data.context, content)
-            .await
-            .expect("error sending message");
-    }
-
-    fn team(&self) -> Team {
-        Team::Wolf
-    }
-
-    fn group(&self) -> Group {
-        Group::Wolf
+        data.players[index].say(content);
     }
 }

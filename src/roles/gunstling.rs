@@ -1,18 +1,33 @@
 use std::iter;
 
+use itertools::Itertools;
+
 use super::*;
 
 #[derive(Clone, Default)]
 pub struct Gunstling;
 
+impl Role for Gunstling {
+    fn build(&self) -> Box<dyn RoleBehavior> {
+        Box::new(Gunstling)
+    }
+
+    fn team(&self) -> Team {
+        Team::Wolf
+    }
+
+    fn group(&self) -> Group {
+        Group::Mensch
+    }
+
+    fn name(&self) -> String {
+        "Günstling".into()
+    }
+}
+
 #[async_trait]
 impl RoleBehavior for Gunstling {
-    async fn ask<'a>(
-        &mut self,
-        data: &GameData<'a>,
-        _reactions: &mut ReceiverStream<Interaction>,
-        index: usize,
-    ) {
+    async fn ask<'a>(&mut self, data: &GameData<'a>, index: usize) {
         let mut wolves = data
             .roles
             .iter()
@@ -22,25 +37,14 @@ impl RoleBehavior for Gunstling {
         let content = match wolves.next() {
             Some((x, _)) => format!(
                 "Die anderen Freimaurer sind: {}",
-                iter::once(data.users[x].name.clone())
-                    .chain(wolves.map(|(u, _)| data.users[u].name.clone()))
+                iter::once(data.players[x].name.clone())
+                    .chain(wolves.map(|(u, _)| data.players[u].name.clone()))
                     .format(", ")
             ),
             None => "Du bist alleine.".to_string(),
         };
 
-        data.dm_channels[index]
-            .say(data.context, content)
-            .await
-            .expect("error sending message");
-    }
-
-    fn team(&self) -> Team {
-        Team::Wolf
-    }
-
-    fn group(&self) -> Group {
-        Group::Mensch
+        data.players[index].say(content);
     }
 }
 

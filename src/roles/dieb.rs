@@ -1,5 +1,3 @@
-use crate::game::choice;
-
 use super::*;
 
 #[derive(Clone, Default)]
@@ -17,6 +15,10 @@ impl Role for Dieb {
     fn group(&self) -> Group {
         Group::Mensch
     }
+
+    fn name(&self) -> String {
+        "Dieb".into()
+    }
 }
 
 #[derive(Clone)]
@@ -26,25 +28,22 @@ struct DiebData {
 
 #[async_trait]
 impl RoleBehavior for DiebData {
-    async fn ask<'a>(
-        &mut self,
-        data: &GameData<'a>,
-        reactions: &mut ReceiverStream<Interaction>,
-        index: usize,
-    ) {
-        let others = data.users.iter().enumerate().filter(|&(i, _)| i != index);
+    async fn ask<'a>(&mut self, data: &GameData<'a>, index: usize) {
+        let others = data
+            .players
+            .iter()
+            .enumerate()
+            .filter(|&(i, _)| i != index)
+            .collect::<Vec<_>>();
 
-        let to_steal = choice(
-            data.context,
-            reactions,
-            data.dm_channels[index].id,
-            "Mit wem willst du tauschen?",
-            others,
-            |(_, u)| u.name.clone(),
-        )
-        .await;
+        let to_steal = data.players[index]
+            .choice(
+                "Mit wem willst du tauschen?".into(),
+                others.iter().map(|(_, u)| u.name.clone()).collect(),
+            )
+            .await;
 
-        self.to_steal = to_steal.map(|(i, _)| i);
+        self.to_steal = Some(others[to_steal].0);
     }
 
     fn action<'a>(&mut self, data: &mut GameData<'a>, index: usize) {
@@ -53,28 +52,12 @@ impl RoleBehavior for DiebData {
         }
     }
 
-    async fn after<'a>(
-        &mut self,
-        data: &GameData<'a>,
-        _reactions: &mut ReceiverStream<Interaction>,
-        index: usize,
-    ) {
+    async fn after<'a>(&mut self, data: &GameData<'a>, index: usize) {
         if let Some(to_steal) = self.to_steal {
-            let name = data.users[to_steal].name.clone();
+            let name = data.players[to_steal].name.clone();
             let new_role = data.roles[index].to_string();
-            data.dm_channels[index]
-                .say(data.context, format!("{} war {}", name, new_role))
-                .await
-                .expect("error sending message");
+            data.players[index].say(format!("{} war {}", name, new_role))
         }
-    }
-
-    fn team(&self) -> Team {
-        Team::Dorf
-    }
-
-    fn group(&self) -> Group {
-        Group::Mensch
     }
 }
 

@@ -2,12 +2,27 @@
 
 use async_trait::async_trait;
 use dyn_clone::DynClone;
-use itertools::Itertools;
-use serenity::model::interactions::Interaction;
-use std::fmt::Display;
-use tokio_stream::wrappers::ReceiverStream;
+use once_cell::sync::Lazy;
+
+use std::{any::Any, fmt::Display};
 
 use crate::game::GameData;
+
+pub static ALL_ROLES: Lazy<Vec<&dyn Role>> = Lazy::new(|| {
+    let r: [Box<dyn Role>; 8] = [
+        Box::new(Dieb),
+        Box::new(Doppel),
+        Box::new(Dorfbewohner),
+        Box::new(Freimaurer),
+        Box::new(Werwolf),
+        Box::new(Seherin),
+        Box::new(Unruhestifterin),
+        Box::new(Schlaflose),
+    ];
+    IntoIterator::into_iter(r)
+        .map(|b| (Box::leak(b) as &_))
+        .collect()
+});
 
 #[derive(PartialEq, Eq)]
 pub enum Team {
@@ -18,69 +33,48 @@ pub enum Team {
 #[derive(PartialEq, Eq)]
 pub enum Group {
     Mensch,
-    Freimaurer,
     Wolf,
 }
 
-pub trait Role: DynClone + Display + Send + Sync {
+pub trait Role: DynClone + Display + Send + Sync + Any {
     fn build(&self) -> Box<dyn RoleBehavior>;
 
     fn team(&self) -> Team;
 
     fn group(&self) -> Group;
+
+    fn name(&self) -> String;
 }
 
-impl<T> Role for T
-where
-    T: 'static + RoleBehavior + Clone,
-{
-    fn build(&self) -> Box<dyn RoleBehavior> {
-        let t: T = self.clone();
-        Box::new(t)
-    }
+// impl<T> Role for T
+// where
+//     T: 'static + RoleBehavior + Clone,
+// {
+//     fn build(&self) -> Box<dyn RoleBehavior> {
+//         let t: T = self.clone();
+//         Box::new(t)
+//     }
 
-    fn team(&self) -> Team {
-        self.team()
-    }
+//     fn team(&self) -> Team {
+//         self.team()
+//     }
 
-    fn group(&self) -> Group {
-        self.group()
-    }
-}
+//     fn group(&self) -> Group {
+//         self.group()
+//     }
+// }
 
 #[async_trait]
-pub trait RoleBehavior: Display + Send + Sync {
-    async fn before_ask<'a>(
-        &mut self,
-        _data: &GameData<'a>,
-        _reactions: &mut ReceiverStream<Interaction>,
-        _index: usize,
-    ) {
-    }
+pub trait RoleBehavior: Send + Sync {
+    async fn before_ask<'a>(&mut self, _data: &GameData<'a>, _index: usize) {}
 
     fn before_action<'a>(&mut self, _data: &mut GameData<'a>, _index: usize) {}
 
-    async fn ask<'a>(
-        &mut self,
-        _data: &GameData<'a>,
-        _reactions: &mut ReceiverStream<Interaction>,
-        _index: usize,
-    ) {
-    }
+    async fn ask<'a>(&mut self, _data: &GameData<'a>, _index: usize) {}
 
     fn action<'a>(&mut self, _data: &mut GameData<'a>, _index: usize) {}
 
-    async fn after<'a>(
-        &mut self,
-        _data: &GameData<'a>,
-        _reactions: &mut ReceiverStream<Interaction>,
-        _index: usize,
-    ) {
-    }
-
-    fn team(&self) -> Team;
-
-    fn group(&self) -> Group;
+    async fn after<'a>(&mut self, _data: &GameData<'a>, _index: usize) {}
 }
 
 dyn_clone::clone_trait_object!(Role);

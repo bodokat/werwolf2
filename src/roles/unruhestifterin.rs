@@ -1,4 +1,4 @@
-use crate::game::choice;
+use itertools::Itertools;
 
 use super::*;
 
@@ -23,6 +23,10 @@ impl Role for Unruhestifterin {
     fn group(&self) -> Group {
         Group::Mensch
     }
+
+    fn name(&self) -> String {
+        "Unruhestifterin".into()
+    }
 }
 
 #[derive(Clone)]
@@ -32,67 +36,50 @@ pub struct UnruhestifterinData {
 
 #[async_trait]
 impl RoleBehavior for UnruhestifterinData {
-    async fn ask<'a>(
-        &mut self,
-        data: &GameData<'a>,
-        reactions: &mut ReceiverStream<Interaction>,
-        index: usize,
-    ) {
-        data.dm_channels[index]
-            .say(data.context, "Du darfst nun zwei Spieler vertauschen")
-            .await
-            .expect("Error sending message");
+    async fn ask<'a>(&mut self, data: &GameData<'a>, index: usize) {
+        data.players[index].say("Du darfst nun zwei Spieler vertauschen".into());
 
-        let others = data.users.iter().enumerate().filter(|&(i, _)| i != index);
+        let others = data
+            .players
+            .iter()
+            .enumerate()
+            .filter(|&(i, _)| i != index)
+            .collect_vec();
 
-        let first = choice(
-            data.context,
-            reactions,
-            data.dm_channels[index].id,
-            "Wähle den ersten Spieler",
-            others.clone(),
-            |(_, u)| u.name.clone(),
-        )
-        .await;
+        let first = data.players[index]
+            .choice(
+                "Wähle den ersten Spieler".into(),
+                others.iter().map(|(_, u)| u.name.clone()).collect(),
+            )
+            .await;
+        let first = others[first];
 
-        let second = choice(
-            data.context,
-            reactions,
-            data.dm_channels[index].id,
-            "Wähle den zweiten Spieler",
-            others,
-            |(_, u)| u.name.clone(),
-        )
-        .await;
+        let others = others
+            .into_iter()
+            .filter(|&(i, _)| i != first.0)
+            .collect::<Vec<_>>();
 
-        if let (Some((first, u1)), Some((second, u2))) = (first, second) {
-            data.dm_channels[index]
-                .say(
-                    data.context,
-                    format!(
-                        "Es werden nun {} und {} vertauscht",
-                        u1.name.clone(),
-                        u2.name.clone()
-                    ),
-                )
-                .await
-                .expect("Error sending message");
-            self.to_swap = Some((first, second));
-        }
+        let second = data.players[index]
+            .choice(
+                "Wähle den zweiten Spieler".into(),
+                others.iter().map(|(_, u)| u.name.clone()).collect(),
+            )
+            .await;
+        let second = others[second];
+
+        data.players[index].say(format!(
+            "Es werden nun {} und {} vertauscht",
+            first.1.name.clone(),
+            second.1.name.clone()
+        ));
+
+        self.to_swap = Some((first.0, second.0));
     }
 
     fn action<'a>(&mut self, data: &mut GameData<'a>, _index: usize) {
         if let Some((x, y)) = self.to_swap {
             data.roles.swap(x, y);
         }
-    }
-
-    fn team(&self) -> Team {
-        Team::Dorf
-    }
-
-    fn group(&self) -> Group {
-        Group::Mensch
     }
 }
 

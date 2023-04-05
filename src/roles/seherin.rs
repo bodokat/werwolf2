@@ -1,68 +1,62 @@
 use std::iter::once;
 
-use crate::game::choice;
-
 use super::*;
 
 #[derive(Clone, Default)]
 pub struct Seherin;
 
-#[async_trait]
-impl RoleBehavior for Seherin {
-    async fn ask<'a>(
-        &mut self,
-        data: &GameData<'a>,
-        reactions: &mut ReceiverStream<Interaction>,
-        index: usize,
-    ) {
-        let others = data.users.iter().enumerate().filter(|&(i, _)| i != index);
-        let choices = others.map(|(u, _)| Some(u)).chain(once(None));
-
-        let c: Option<usize> = choice(
-            data.context,
-            reactions,
-            data.dm_channels[index].id,
-            "Wesen Rolle willst du sehen?",
-            choices,
-            |&x| match x {
-                Some(u) => data.users[u].name.clone(),
-                None => "2 Karten aus der Mitte".to_string(),
-            },
-        )
-        .await
-        .flatten();
-
-        match c {
-            Some(u) => {
-                data.dm_channels[index]
-                    .say(
-                        data.context,
-                        format!("{} hat die Rolle {}", data.users[u].name, data.roles[u]),
-                    )
-                    .await
-                    .expect("Error sending message");
-            }
-            None => {
-                data.dm_channels[index]
-                    .say(
-                        data.context,
-                        format!(
-                            "2 Rollen in der Mitte sind: {}, {}",
-                            data.extra_roles[0], data.extra_roles[1]
-                        ),
-                    )
-                    .await
-                    .expect("Error sending message");
-            }
-        }
-    }
-
+impl Role for Seherin {
     fn team(&self) -> Team {
         Team::Dorf
     }
 
     fn group(&self) -> Group {
         Group::Mensch
+    }
+
+    fn build(&self) -> Box<dyn RoleBehavior> {
+        Box::new(Seherin)
+    }
+
+    fn name(&self) -> String {
+        "Seherin".into()
+    }
+}
+
+#[async_trait]
+impl RoleBehavior for Seherin {
+    async fn ask<'a>(&mut self, data: &GameData<'a>, index: usize) {
+        let others = data.players.iter().enumerate().filter(|&(i, _)| i != index);
+        let choices = others
+            .map(|(u, _)| Some(u))
+            .chain(once(None))
+            .collect::<Vec<_>>();
+
+        let response = data.players[index].choice(
+            "Wesen Rolle willst du sehen?".into(),
+            choices
+                .iter()
+                .map(|&x| match x {
+                    Some(u) => data.players[u].name.clone(),
+                    None => "2 Karten aus der Mitte".to_string(),
+                })
+                .collect(),
+        );
+
+        match choices[response.await] {
+            Some(u) => {
+                data.players[index].say(format!(
+                    "{} hat die Rolle {}",
+                    data.players[u].name, data.roles[u]
+                ));
+            }
+            None => {
+                data.players[index].say(format!(
+                    "2 Rollen in der Mitte sind: {}, {}",
+                    data.extra_roles[0], data.extra_roles[1]
+                ));
+            }
+        }
     }
 }
 

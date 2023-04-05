@@ -1,63 +1,42 @@
+use crate::{
+    lobby::{LobbySettings, PlayerMessage},
+    message,
+};
 use futures::{
-    future::{join_all, ready},
-    pin_mut,
-    stream::FuturesOrdered,
+    future::ready,
+    stream::{FuturesUnordered, StreamExt},
 };
-use itertools::Itertools;
+use itertools::{repeat_n, Itertools};
 use rand::prelude::*;
-use serenity::{
-    futures::stream::{FuturesUnordered, StreamExt},
-    model::{
-        channel::PrivateChannel,
-        id::ChannelId,
-        interactions::{Interaction, InteractionData},
-        prelude::User,
-    },
-    prelude::*,
-};
 
-use tokio_stream::wrappers::ReceiverStream;
+use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::oneshot;
 
-use crate::roles::{self, Group, Role, RoleBehavior, Team};
+use crate::roles::{Group, Role, RoleBehavior, Team};
 
-pub async fn start_game(ctx: &Context, players: Vec<(&User, ReceiverStream<Interaction>)>) {
-    let roles: Vec<Box<dyn Role>> = vec![
-        Box::new(roles::Doppel),
-        Box::new(roles::Werwolf),
-        Box::new(roles::Werwolf),
-        Box::new(roles::Dorfbewohner),
-        Box::new(roles::Seherin),
-        Box::new(roles::Dieb),
-        Box::new(roles::Unruhestifterin),
-        Box::new(roles::Schlaflose),
-    ];
-
-    let (mut data, mut behaviors, mut reactions) = setup(players, roles, ctx).await;
+pub async fn start_game(
+    players: Vec<(&String, UnboundedSender<PlayerMessage>)>,
+    settings: &LobbySettings,
+) {
+    let (mut data, mut behaviors) = setup(players, settings);
 
     let roles_string = data.roles.iter().join(" | ");
 
-    join_all(
-        data.dm_channels
-            .iter()
-            .map(|c| c.say(data.context, format!("Die Rollen sind:\n{}", roles_string))),
-    )
-    .await;
+    data.players
+        .iter()
+        .for_each(|c| c.say(format!("Die Rollen sind:\n{}", roles_string)));
 
-    join_all(
-        data.dm_channels
-            .iter()
-            .zip(data.roles.iter())
-            .map(|(c, role)| c.say(data.context, format!("Deine Rolle ist: {}", role))),
-    )
-    .await;
+    data.players
+        .iter()
+        .zip(data.roles.iter())
+        .for_each(|(c, role)| c.say(format!("Deine Rolle ist: {}", role.name())));
 
     // --- Action
 
     behaviors
         .iter_mut()
-        .zip(reactions.iter_mut())
         .enumerate()
-        .map(|(idx, (behavior, reactions))| behavior.before_ask(&data, reactions, idx))
+        .map(|(idx, behavior)| behavior.before_ask(&data, idx))
         .collect::<FuturesUnordered<_>>()
         .for_each(|_| ready(()))
         .await;
@@ -69,9 +48,8 @@ pub async fn start_game(ctx: &Context, players: Vec<(&User, ReceiverStream<Inter
 
     behaviors
         .iter_mut()
-        .zip(reactions.iter_mut())
         .enumerate()
-        .map(|(idx, (behavior, reactions))| behavior.ask(&data, reactions, idx))
+        .map(|(idx, behavior)| behavior.ask(&data, idx))
         .collect::<FuturesUnordered<_>>()
         .for_each(|_| ready(()))
         .await;
@@ -83,39 +61,33 @@ pub async fn start_game(ctx: &Context, players: Vec<(&User, ReceiverStream<Inter
 
     behaviors
         .iter_mut()
-        .zip(reactions.iter_mut())
         .enumerate()
-        .map(|(idx, (behavior, reactions))| behavior.after(&data, reactions, idx))
+        .map(|(idx, behavior)| behavior.after(&data, idx))
         .collect::<FuturesUnordered<_>>()
         .for_each(|_| ready(()))
         .await;
 
     // --- Voting
 
-    join_all(
-        data.dm_channels
-            .iter()
-            .map(|c| c.say(data.context, "Voting started")),
-    )
-    .await;
+    data.players
+        .iter()
+        .for_each(|c| c.say("Die Abstimmung beginnt".into()));
 
-    let users = &data.users;
-    let votes: Vec<u32> = reactions
-        .iter_mut()
-        .zip(data.dm_channels.iter())
-        .map(|(receiver, channel)| async move {
-            choice(
-                ctx,
-                receiver,
-                channel.id,
-                "Wähle einen Mitspieler",
-                0..users.len(),
-                |&idx| users[idx].name.clone(),
-            )
-            .await
+    let players = &data.players;
+    let votes: Vec<u32> = data
+        .players
+        .iter()
+        .map(|player| async move {
+            player
+                .choice(
+                    "Wähle einen Mitspieler".into(),
+                    (0..players.len())
+                        .map(|idx| players[idx].name.clone())
+                        .collect(),
+                )
+                .await
         })
         .collect::<FuturesUnordered<_>>()
-        .filter_map(ready)
         .fold(vec![0; data.roles.len()], |mut acc, x| {
             acc[x] += 1;
             ready(acc)
@@ -124,15 +96,14 @@ pub async fn start_game(ctx: &Context, players: Vec<(&User, ReceiverStream<Inter
 
     {
         let content = format!(
-            "Votes:\n{}",
+            "Stimmen:\n{}",
             votes
                 .iter()
                 .enumerate()
-                .map(|(idx, votes)| format!("{}: {}", data.users[idx].name, votes))
+                .map(|(idx, votes)| format!("{}: {}", data.players[idx].name, votes))
                 .join("\n")
         );
-        let content = &content;
-        join_all(data.dm_channels.iter().map(|p| p.say(ctx, content))).await;
+        data.players.iter().for_each(|p| p.say(content.clone()));
     }
 
     let mut skipped = false;
@@ -165,19 +136,19 @@ pub async fn start_game(ctx: &Context, players: Vec<(&User, ReceiverStream<Inter
         } else if voted_players.len() == 1 {
             format!(
                 "{} ist gestorben",
-                data.users[voted_players[0]].name.clone()
+                data.players[voted_players[0]].name.clone()
             )
         } else {
             format!(
                 "{} sind gestorben",
                 voted_players
                     .iter()
-                    .map(|&idx| data.users[idx].name.clone())
+                    .map(|&idx| data.players[idx].name.clone())
                     .join(", ")
             )
         };
         let content = &content;
-        join_all(data.dm_channels.iter().map(|p| p.say(ctx, content))).await;
+        data.players.iter().for_each(|p| p.say(content.to_string()));
     }
 
     let has_werewolf = data.roles.iter().any(|role| role.group() == Group::Wolf);
@@ -205,12 +176,12 @@ pub async fn start_game(ctx: &Context, players: Vec<(&User, ReceiverStream<Inter
             Team::Dorf => "Das Dorf hat gewonnen",
             Team::Wolf => "Die Werwölfe haben gewonnen",
         };
-        join_all(data.dm_channels.iter().map(|p| p.say(ctx, content))).await;
+        data.players.iter().for_each(|p| p.say(content.into()));
     }
 
     {
         let winners = data
-            .users
+            .players
             .iter()
             .zip(data.roles.iter())
             .filter_map(|(player, role)| {
@@ -223,118 +194,128 @@ pub async fn start_game(ctx: &Context, players: Vec<(&User, ReceiverStream<Inter
             .join(", ");
 
         let content = &format!("Die Gewinner sind: {}", winners);
-        join_all(data.dm_channels.iter().map(|p| p.say(ctx, content))).await;
+        data.players.iter().for_each(|p| p.say(content.to_string()));
     }
 
-    join_all(data.dm_channels.iter().map(|p| p.say(ctx, "-------------"))).await;
+    data.players
+        .iter()
+        .for_each(|p| p.say("-------------".into()));
 }
 
 pub struct GameData<'a> {
-    pub users: Vec<&'a User>,
-    pub dm_channels: Vec<PrivateChannel>,
-    pub roles: Vec<Box<dyn Role>>,
-    pub extra_roles: Vec<Box<dyn Role>>,
-    pub context: &'a Context,
+    pub players: Vec<Player<'a>>,
+    pub roles: Vec<&'static dyn Role>,
+    pub extra_roles: Vec<&'static dyn Role>,
 }
 
-async fn setup<'a>(
-    mut players: Vec<(&'a User, ReceiverStream<Interaction>)>,
-    mut player_roles: Vec<Box<dyn Role>>,
-    ctx: &'a Context,
-) -> (
-    GameData<'a>,
-    Vec<Box<dyn RoleBehavior>>,
-    Vec<ReceiverStream<Interaction>>,
-) {
-    assert!(player_roles.len() >= players.len());
+pub struct Player<'a> {
+    pub name: &'a String,
+    sender: UnboundedSender<PlayerMessage>,
+}
 
-    let (players, extra_roles) = {
-        let mut thread_rng = thread_rng();
-        let extra_roles: Vec<Box<dyn Role>> = (0..(player_roles.len() - players.len()))
-            .map(|_| player_roles.remove((&mut thread_rng).gen_range(0..player_roles.len())))
-            .collect();
-        players.shuffle(&mut thread_rng);
-        (players, extra_roles)
-    };
-    let mut users = Vec::with_capacity(players.len());
-    let mut reactions = Vec::with_capacity(players.len());
-    for (user, channel) in players {
-        users.push(user);
-        reactions.push(channel);
-    }
-    let dm_channels = users
+fn setup<'a>(
+    players: Vec<(&'a String, UnboundedSender<PlayerMessage>)>,
+    settings: &'a LobbySettings,
+) -> (GameData<'a>, Vec<Box<dyn RoleBehavior>>) {
+    let mut all_roles = settings
+        .role_amounts
         .iter()
-        .map(|u| u.create_dm_channel(ctx))
-        .collect::<FuturesOrdered<_>>()
-        .map(|res| res.expect("Error creating DM channel"))
-        .collect::<Vec<_>>()
-        .await;
+        .enumerate()
+        .flat_map(|(index, &amount)| repeat_n(settings.available_roles[index], amount))
+        .collect::<Vec<_>>();
 
-    let behaviors = player_roles.iter().map(|r| r.build()).collect::<Vec<_>>();
+    assert!(players.len() < all_roles.len(), "Not enough roles");
+
+    let mut thread_rng = thread_rng();
+    all_roles.shuffle(&mut thread_rng);
+    let (roles, extra_roles) = all_roles.split_at(players.len());
+    let roles = roles.to_vec();
+    let extra_roles = extra_roles.to_vec();
+
+    let behaviors = roles.iter().map(|r| r.build()).collect::<Vec<_>>();
+
+    let players = players
+        .into_iter()
+        .map(|(name, sender)| Player { name, sender })
+        .collect();
 
     (
         GameData {
-            context: ctx,
-            users,
-            roles: player_roles,
+            players,
+            roles,
             extra_roles,
-            dm_channels,
         },
         behaviors,
-        reactions,
     )
 }
 
-pub async fn choice<T, F, D: ToString, S: ToString>(
-    ctx: &Context,
-    receiver: &mut ReceiverStream<Interaction>,
-    channel: ChannelId,
-    title: D,
-    choices: impl Iterator<Item = T>,
-    name: F,
-) -> Option<T>
-where
-    F: Fn(&T) -> S,
-{
-    let mut choices: Vec<T> = choices.collect();
-
-    let stream = receiver.filter_map(|i| async {
-        if let Some(InteractionData::MessageComponent(data)) = i.data {
-            Some(
-                data.custom_id
-                    .parse::<usize>()
-                    .expect("Error parsing custom_id"),
-            )
-        } else {
-            None
-        }
-    });
-
-    channel
-        .send_message(&ctx, |m| {
-            m.content(title);
-            m.components(|c| {
-                let chunks = choices.iter().enumerate().chunks(5);
-                chunks.into_iter().for_each(|chunk| {
-                    c.create_action_row(|a| {
-                        chunk.for_each(|(index, choice)| {
-                            a.create_button(|b| {
-                                b.label(name(choice));
-                                b.custom_id(index.to_string());
-                                b.style(serenity::model::interactions::ButtonStyle::Primary)
-                            });
-                        });
-                        a
-                    });
-                });
-                c
-            })
-        })
-        .await
-        .expect("Error sending message");
-
-    let stream = stream.map(move |n| choices.remove(n));
-    pin_mut!(stream);
-
-    stream.next().await
+impl<'a> Player<'a> {
+    pub fn say(&self, text: String) {
+        self.sender
+            .send(PlayerMessage::Other(message::ToClient::Text(text)));
+    }
+    pub async fn choice(&self, text: String, options: Vec<String>) -> usize {
+        assert!(!options.is_empty());
+        let (tx, rx) = oneshot::channel();
+        self.sender.send(PlayerMessage::Question {
+            text,
+            options,
+            response: tx,
+        });
+        rx.await.unwrap()
+    }
 }
+
+// pub async fn choice<T, F, D: ToString, S: ToString>(
+//     ctx: &Context,
+//     receiver: &mut ReceiverStream<Interaction>,
+//     channel: ChannelId,
+//     title: D,
+//     choices: impl Iterator<Item = T>,
+//     name: F,
+// ) -> Option<T>
+// where
+//     F: Fn(&T) -> S,
+// {
+//     let mut choices: Vec<T> = choices.collect();
+
+//     let stream = receiver.filter_map(|i| async {
+//         if let Some(InteractionData::MessageComponent(data)) = i.data {
+//             Some(
+//                 data.custom_id
+//                     .parse::<usize>()
+//                     .expect("Error parsing custom_id"),
+//             )
+//         } else {
+//             None
+//         }
+//     });
+
+//     channel
+//         .send_message(&ctx, |m| {
+//             m.content(title);
+//             m.components(|c| {
+//                 let chunks = choices.iter().enumerate().chunks(5);
+//                 chunks.into_iter().for_each(|chunk| {
+//                     c.create_action_row(|a| {
+//                         chunk.for_each(|(index, choice)| {
+//                             a.create_button(|b| {
+//                                 b.label(name(choice));
+//                                 b.custom_id(index.to_string());
+//                                 b.style(serenity::model::interactions::ButtonStyle::Primary)
+//                             });
+//                         });
+//                         a
+//                     });
+//                 });
+//                 c
+//             })
+//         })
+//         .await
+//         .expect("Error sending message");
+
+//     let stream = stream.map(move |n| choices.remove(n));
+//     pin_mut!(stream);
+
+//     stream.next().await
+// }

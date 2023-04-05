@@ -49,7 +49,7 @@ impl ChatServer {
     }
 }
 
-struct ChatRoom {
+pub struct ChatRoom {
     users: Mutex<HashSet<String>>,
     tx: broadcast::Sender<String>,
 }

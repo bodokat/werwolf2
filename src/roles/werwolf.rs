@@ -2,10 +2,29 @@ use std::iter;
 
 use super::*;
 
+use itertools::Itertools;
 use rand::prelude::{thread_rng, IteratorRandom};
 
 #[derive(Clone, Default)]
 pub struct Werwolf;
+
+impl Role for Werwolf {
+    fn team(&self) -> Team {
+        Team::Wolf
+    }
+
+    fn group(&self) -> Group {
+        Group::Wolf
+    }
+
+    fn build(&self) -> Box<dyn RoleBehavior> {
+        Box::new(Werwolf)
+    }
+
+    fn name(&self) -> String {
+        "Werwolf".into()
+    }
+}
 
 impl Display for Werwolf {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -15,23 +34,18 @@ impl Display for Werwolf {
 
 #[async_trait]
 impl RoleBehavior for Werwolf {
-    async fn ask<'a>(
-        &mut self,
-        data: &GameData<'a>,
-        _reactions: &mut ReceiverStream<Interaction>,
-        index: usize,
-    ) {
+    async fn ask<'a>(&mut self, data: &GameData<'a>, index: usize) {
         let mut others = data
             .roles
             .iter()
             .enumerate()
-            .filter(|&(i, r)| r.group() == Group::Freimaurer && i != index);
+            .filter(|&(i, &r)| (*r).type_id() == Werwolf.type_id() && i != index);
 
         let content = match others.next() {
             Some((x, _)) => format!(
                 "Die anderen Werwölfe sind: {}",
-                iter::once(data.users[x].name.clone())
-                    .chain(others.map(|(u, _)| data.users[u].name.clone()))
+                iter::once(data.players[x].name.clone())
+                    .chain(others.map(|(u, _)| data.players[u].name.clone()))
                     .format(", ")
             ),
             None => match data
@@ -45,17 +59,6 @@ impl RoleBehavior for Werwolf {
             },
         };
 
-        data.dm_channels[index]
-            .say(data.context, content)
-            .await
-            .expect("error sending message");
-    }
-
-    fn team(&self) -> Team {
-        Team::Wolf
-    }
-
-    fn group(&self) -> Group {
-        Group::Wolf
+        data.players[index].say(content);
     }
 }

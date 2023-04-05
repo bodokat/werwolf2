@@ -22,8 +22,6 @@ web/npm-debug.log*
 web/yarn-debug.log*
 web/yarn-error.log*
 
-#old version, only for reference
-werwolf-rs
 
 .vscode
 .env

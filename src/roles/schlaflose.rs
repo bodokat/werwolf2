@@ -3,26 +3,28 @@ use super::*;
 #[derive(Clone, Default)]
 pub struct Schlaflose;
 
-#[async_trait]
-impl RoleBehavior for Schlaflose {
-    async fn after<'a>(
-        &mut self,
-        data: &GameData<'a>,
-        _reactions: &mut ReceiverStream<Interaction>,
-        index: usize,
-    ) {
-        data.dm_channels[index]
-            .say(data.context, format!("Du bist jetzt {}", data.roles[index]))
-            .await
-            .expect("Error sending message");
-    }
-
+impl Role for Schlaflose {
     fn team(&self) -> Team {
         Team::Dorf
     }
 
     fn group(&self) -> Group {
         Group::Mensch
+    }
+
+    fn build(&self) -> Box<dyn RoleBehavior> {
+        Box::new(Schlaflose)
+    }
+
+    fn name(&self) -> String {
+        "Schlaflose".into()
+    }
+}
+
+#[async_trait]
+impl RoleBehavior for Schlaflose {
+    async fn after<'a>(&mut self, data: &GameData<'a>, index: usize) {
+        data.players[index].say(format!("Du bist jetzt {}", data.roles[index]));
     }
 }
 

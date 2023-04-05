@@ -1,25 +1,20 @@
 #![warn(clippy::all)]
 
-use serenity::client::Client;
-
-mod controller;
 mod game;
 mod lobby;
 mod roles;
 mod utils;
 
-use controller::Controller;
-
 use std::net::SocketAddr;
 
-use axum_extra::routing::SpaRouter;
-use futures::SinkExt;
+use tower_http::services::ServeDir;
 
 use axum::Router;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod chat;
 pub mod message;
+mod server;
 
 #[tokio::main]
 async fn main() {
@@ -32,7 +27,8 @@ async fn main() {
 
     let app = Router::new()
         .nest("/chat", chat::router())
-        .merge(SpaRouter::new("/", "web/build"));
+        .nest("/api", server::router())
+        .fallback_service(ServeDir::new("web/build"));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     tracing::debug!("listening on http://{addr}");

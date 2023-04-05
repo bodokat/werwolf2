@@ -30,7 +30,7 @@ where
             Some(b) => b,
             None => return false,
         } as *mut V;
-        // SAFETY: the only reason why we can't call std::mem::swap is that we would have to borrow [roles] mutably twice
+        // SAFETY: the only reason why we can't call std::mem::swap is that we would have to borrow self mutably twice
         unsafe {
             std::ptr::swap(a, b);
         }
