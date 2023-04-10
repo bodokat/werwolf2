@@ -17,7 +17,7 @@ function Login() {
                 onChange={(event) => setName(event.currentTarget.value)}
             />
             <Button
-                onClick={() => onSubmit(name)}
+                onClick={() => { }}
             >
                 Enter
             </Button>

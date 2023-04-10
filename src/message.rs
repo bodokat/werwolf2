@@ -1,22 +1,14 @@
 use std::convert::TryFrom;
 
 use axum::extract::ws::Message;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Serialize, Deserialize, JsonSchema, Clone)]
-pub struct Player {
-    pub name: String,
-}
+// note: we use "Enum::Variant()" syntax so serde_json generates a sane representation
 
-#[derive(Serialize, Deserialize, JsonSchema, Clone)]
-pub struct LobbySettings {
-    pub available_roles: Vec<String>,
-    pub roles: Vec<usize>,
-    pub admin: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, JsonSchema, Clone)]
+#[derive(Serialize, Deserialize, Debug, TS, Clone)]
+#[ts(export)]
+#[serde(tag = "type")]
 #[serde(rename_all = "lowercase")]
 pub enum ToClient {
     Welcome {
@@ -24,11 +16,21 @@ pub enum ToClient {
         players: Vec<String>,
     },
     NewSettings(LobbySettings),
-    Joined(Player),
-    Left(Player),
+    Joined {
+        player: Player,
+    },
+    Left {
+        player: Player,
+    },
     Started,
+    NameAccepted {
+        name: String,
+    },
+    NameRejected,
 
-    Text(String),
+    Text {
+        text: String,
+    },
     Question {
         id: usize,
         text: String,
@@ -37,20 +39,36 @@ pub enum ToClient {
     Ended,
 }
 
+#[derive(Serialize, Deserialize, Debug, TS)]
+#[ts(export)]
+#[serde(tag = "type")]
+#[serde(rename_all = "lowercase")]
+pub enum ToServer {
+    Start,
+    Response { id: usize, choice: usize },
+
+    Kick { player: Player },
+    ChangeRoles { new_roles: Vec<usize> },
+}
+
+#[derive(Serialize, Deserialize, Debug, TS, Clone)]
+#[ts(export)]
+pub struct Player {
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, TS, Clone)]
+#[ts(export)]
+pub struct LobbySettings {
+    pub available_roles: Vec<String>,
+    pub roles: Vec<usize>,
+    pub admin: Option<String>,
+}
+
 impl From<&ToClient> for Message {
     fn from(value: &ToClient) -> Self {
         Self::Text(serde_json::to_string(value).unwrap())
     }
-}
-
-#[derive(Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "lowercase")]
-pub enum ToServer {
-    Response { id: usize, choice: usize },
-
-    Start,
-    Kick(Player),
-    ChangeRoles(Vec<usize>),
 }
 
 impl TryFrom<&str> for ToServer {

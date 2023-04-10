@@ -7,28 +7,41 @@ mod utils;
 
 use std::net::SocketAddr;
 
-use tower_http::services::ServeDir;
-
 use axum::Router;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tower_http::{
+    cors::{Any, CorsLayer},
+    services::{ServeDir, ServeFile},
+    trace::{self, TraceLayer},
+};
+use tracing::Level;
 
-mod chat;
 pub mod message;
 mod server;
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "werwolf=trace".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
+    // tracing_subscriber::registry()
+    //     .with(tracing_subscriber::EnvFilter::new(
+    //         std::env::var("RUST_LOG").unwrap_or_else(|_| "werwolf=trace".into()),
+    //     ))
+    //     .with(tracing_subscriber::fmt::layer())
+    //     .init();
+
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
         .init();
 
     let app = Router::new()
-        .nest("/chat", chat::router())
         .nest("/api", server::router())
-        .fallback_service(ServeDir::new("web/build"));
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
+                .on_response(trace::DefaultOnResponse::new().level(Level::INFO)),
+        )
+        .layer(CorsLayer::new().allow_origin(Any))
+        .fallback_service(
+            ServeDir::new("./web/dist").not_found_service(ServeFile::new("./web/dist/index.html")),
+        );
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     tracing::debug!("listening on http://{addr}");

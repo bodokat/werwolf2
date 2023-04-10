@@ -4,7 +4,7 @@ use axum::{
     extract::{Path, State, WebSocketUpgrade},
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use rand::{
@@ -34,11 +34,12 @@ impl GameServer {
                 std::collections::hash_map::Entry::Occupied(_) => {}
                 std::collections::hash_map::Entry::Vacant(e) => {
                     let (remove_tx, remove_rx) = oneshot::channel();
-                    e.insert(Lobby::new(code.clone(), remove_tx));
+                    e.insert(Lobby::new(remove_tx));
                     let lobbies = self.lobbies.clone();
                     let code2 = code.clone();
                     tokio::spawn(async move {
                         let _ = remove_rx.await;
+                        println!("Removing lobby: {code2}");
                         lobbies.write().await.remove(&code2);
                     });
                     return code;
@@ -53,7 +54,7 @@ pub fn router() -> Router {
     let app_state = Arc::new(GameServer::new());
     Router::new()
         .route("/join/:lobby", get(join_lobby))
-        .route("/new", get(create_lobby))
+        .route("/new", post(create_lobby))
         .with_state(app_state)
 }
 
@@ -74,6 +75,10 @@ async fn join_lobby(
         .ok_or(StatusCode::NOT_FOUND)?
         .clone();
     Ok(ws.on_upgrade(move |socket| async move {
-        lobby.0.send(crate::lobby::LobbyEvent::New(socket)).await;
+        lobby
+            .0
+            .send(crate::lobby::LobbyEvent::New(socket))
+            .await
+            .unwrap();
     }))
 }

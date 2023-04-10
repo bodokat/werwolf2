@@ -224,7 +224,7 @@ fn setup<'a>(
         .flat_map(|(index, &amount)| repeat_n(settings.available_roles[index], amount))
         .collect::<Vec<_>>();
 
-    assert!(players.len() < all_roles.len(), "Not enough roles");
+    assert!(players.len() <= all_roles.len(), "Not enough roles");
 
     let mut thread_rng = thread_rng();
     all_roles.shuffle(&mut thread_rng);
@@ -252,70 +252,19 @@ fn setup<'a>(
 impl<'a> Player<'a> {
     pub fn say(&self, text: String) {
         self.sender
-            .send(PlayerMessage::Other(message::ToClient::Text(text)));
+            .send(PlayerMessage::Other(message::ToClient::Text { text }))
+            .unwrap();
     }
     pub async fn choice(&self, text: String, options: Vec<String>) -> usize {
         assert!(!options.is_empty());
         let (tx, rx) = oneshot::channel();
-        self.sender.send(PlayerMessage::Question {
-            text,
-            options,
-            response: tx,
-        });
+        self.sender
+            .send(PlayerMessage::Question {
+                text,
+                options,
+                response: tx,
+            })
+            .unwrap();
         rx.await.unwrap()
     }
 }
-
-// pub async fn choice<T, F, D: ToString, S: ToString>(
-//     ctx: &Context,
-//     receiver: &mut ReceiverStream<Interaction>,
-//     channel: ChannelId,
-//     title: D,
-//     choices: impl Iterator<Item = T>,
-//     name: F,
-// ) -> Option<T>
-// where
-//     F: Fn(&T) -> S,
-// {
-//     let mut choices: Vec<T> = choices.collect();
-
-//     let stream = receiver.filter_map(|i| async {
-//         if let Some(InteractionData::MessageComponent(data)) = i.data {
-//             Some(
-//                 data.custom_id
-//                     .parse::<usize>()
-//                     .expect("Error parsing custom_id"),
-//             )
-//         } else {
-//             None
-//         }
-//     });
-
-//     channel
-//         .send_message(&ctx, |m| {
-//             m.content(title);
-//             m.components(|c| {
-//                 let chunks = choices.iter().enumerate().chunks(5);
-//                 chunks.into_iter().for_each(|chunk| {
-//                     c.create_action_row(|a| {
-//                         chunk.for_each(|(index, choice)| {
-//                             a.create_button(|b| {
-//                                 b.label(name(choice));
-//                                 b.custom_id(index.to_string());
-//                                 b.style(serenity::model::interactions::ButtonStyle::Primary)
-//                             });
-//                         });
-//                         a
-//                     });
-//                 });
-//                 c
-//             })
-//         })
-//         .await
-//         .expect("Error sending message");
-
-//     let stream = stream.map(move |n| choices.remove(n));
-//     pin_mut!(stream);
-
-//     stream.next().await
-// }

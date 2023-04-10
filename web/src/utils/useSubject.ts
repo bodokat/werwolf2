@@ -6,9 +6,9 @@ export function useSubject<T>(subject: BehaviorSubject<T>): T {
     const [state, setState] = useState(subject.value)
 
     useEffect(() => {
-        const subscription = subject.subscribe((val) => setState(val))
+        const subscription = subject.subscribe(setState)
         return () => subscription.unsubscribe()
-    })
+    }, [subject])
 
     return state
 }
