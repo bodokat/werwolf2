@@ -204,8 +204,11 @@ async fn handle_player_messages(
                             s.send(PlayerMessage::Other(message::ToClient::Started))
                                 .unwrap();
                         });
-                        let players = players.iter().map(|(n, s)| (n, s.clone())).collect();
-                        start_game(players, &(*lobby.settings.read().await)).await
+                        let players_vec = players.iter().map(|(n, s)| (n, s.clone())).collect();
+                        start_game(players_vec, &(*lobby.settings.read().await)).await;
+                        players.values().for_each(|s| {
+                            s.send(PlayerMessage::Other(ToClient::Ended)).unwrap();
+                        })
                     }
                 });
             }
