@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use std::collections::hash_map::Entry;
 use std::convert::TryFrom;
+use std::str;
 use std::sync::Arc;
 
 use axum::extract::ws::{Message, WebSocket};
@@ -97,6 +98,11 @@ impl LobbyInner {
                                 }
                                 _ => return,
                             };
+
+                            if !validate_name(&response) {
+                                socket.send((&ToClient::NameRejected).into()).await.unwrap();
+                                continue;
+                            }
 
                             let mut players = this.players.write().await;
 
@@ -277,4 +283,7 @@ async fn handle_player_messages(
             }
         }
     }
+}
+fn validate_name(name: &str) -> bool {
+    name != "" && name.len() < 20
 }
