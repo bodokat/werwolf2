@@ -35,20 +35,22 @@ export class GameSession {
     }
     constructor({ socket, lobby, messages, initialState }: { socket: WebSocket, lobby: string, messages: Subject<ToClient>, initialState: SessionState }) {
         this.socket = socket
+        this.messages = messages
 
-
-        let states = messages.pipe(scan(stateReducer, initialState))
+        let states = this.messages.pipe(scan(stateReducer, initialState))
         this.state = new BehaviorSubject(initialState)
         states.subscribe(this.state)
+        this.messages.subscribe(new_message => console.log({ new_message }))
+        this.state.subscribe(new_state => console.log({ new_state }))
     }
 
     send(message: ToServer) {
-        this.socket.send(typeof message === "string" ? `"${message}"` : JSON.stringify(message))
+        this.socket.send(JSON.stringify(message))
     }
 
     socket: WebSocket
 
-    messages: Subject<ToClient> = new Subject()
+    messages: Subject<ToClient>
 
     state: BehaviorSubject<SessionState>
 }
