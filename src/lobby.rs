@@ -242,7 +242,6 @@ async fn handle_player_messages(
                         if let Message::Text(msg) = msg{
                         match message::ToServer::try_from(msg.as_str()) {
                             Ok(msg) => {
-                            tracing::info!("new message: {:?}",msg);
                             handle_message(msg,&mut queries);}
                             Err(e) => {
                                 tracing::warn!("Deserialization error: {e}, message: {msg}");
@@ -265,7 +264,7 @@ async fn handle_player_messages(
                         } => {
                             let id = next_id;
                             next_id += 1;
-                            queries.insert(next_id, response);
+                            queries.insert(id, response);
                             socket
                                 .send((&message::ToClient::Question { id, text, options }).into())
                                 .await.unwrap();

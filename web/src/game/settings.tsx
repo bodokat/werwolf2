@@ -6,7 +6,6 @@ import { Plus, Minus } from "tabler-icons-react";
 import { ToServer } from "../../../bindings/ToServer";
 
 export function Settings() {
-    console.log("settings rendered")
     let state = useContext(stateContext)!
     let session = useContext(sessionContext)!
     let isAdmin = state.me != null && state.me === state.settings.admin

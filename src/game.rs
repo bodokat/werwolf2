@@ -77,19 +77,18 @@ pub async fn start_game(
     let votes: Vec<u32> = data
         .players
         .iter()
-        .map(|player| async move {
-            player
-                .choice(
-                    "Wähle einen Mitspieler".into(),
-                    (0..players.len())
-                        .map(|idx| players[idx].name.clone())
-                        .collect(),
-                )
-                .await
+        .map(|player| {
+            player.choice(
+                "Wähle einen Mitspieler".into(),
+                (0..players.len())
+                    .map(|idx| players[idx].name.clone())
+                    .collect(),
+            )
         })
         .collect::<FuturesUnordered<_>>()
         .fold(vec![0; data.roles.len()], |mut acc, x| {
             acc[x] += 1;
+            println!("acc: {:?}", acc);
             ready(acc)
         })
         .await;
