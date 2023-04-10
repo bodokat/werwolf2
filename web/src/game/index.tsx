@@ -16,7 +16,6 @@ export let sessionContext = createContext<GameSession | null>(null)
 export function Game() {
     let session = useLoaderData()
     if (!(session instanceof GameSession)) {
-        console.log("bruh")
         notifications.show({
             title: "Lobby not found",
             message: "The Lobby you're connecting to was not found"
@@ -25,15 +24,14 @@ export function Game() {
     }
 
     let state = useSubject(session.state)
-    console.log(state)
 
     return <sessionContext.Provider value={session}>
         <stateContext.Provider value={state}>
-            <Stack justify="flex-start" sx={{ minWidth: "100vw", minHeight: "100vh" }}>
+            <Box sx={{ width: "100vw", height: "100vh", display: "grid", gridTemplateRows: "5vh 95vh" }}>
 
 
-                <Group>
-                    Verbunden mit <Paper>{window.location.href} </Paper>
+                <Group sx={{ padding: "1rem" }}>
+                    Verbunden mit {window.location.href}
                     <ActionIcon onClick={() => window.navigator.clipboard.writeText(window.location.href)}>
                         <Clipboard />
                     </ActionIcon>
@@ -41,22 +39,22 @@ export function Game() {
 
 
                 <Box sx={{ display: "grid", gridTemplateColumns: "3fr 2fr", columnGap: "10px", padding: "2rem" }}>
-                    <Box sx={{ gridColumn: 1, gridRowStart: 1, gridRowEnd: 3, border: "2px solid #595959", borderRadius: "5px" }}>
+                    <Box sx={{ gridColumn: 1, gridRowStart: 1, gridRowEnd: 3, border: "2px solid #595959", borderRadius: "5px", padding: "1rem" }}>
                         {(
                             state.me ? <Messages /> :
                                 <NameInput session={session} />
                         )}
 
                     </Box>
-                    <Box sx={{ gridColumn: 2, gridRow: 1, minHeight: "10%", border: "2px solid #595959", borderRadius: "5px" }}>
+                    <Box sx={{ gridColumn: 2, gridRow: 1, minHeight: "10%", border: "2px solid #595959", borderRadius: "5px", padding: "1rem" }}>
                         <Players />
                     </Box>
-                    <Box sx={{ gridColumn: 2, gridRow: 2, minWidth: rem(25), border: "2px solid #595959", borderRadius: "5px" }}>
+                    <Box sx={{ gridColumn: 2, gridRow: 2, minWidth: rem(25), border: "2px solid #595959", borderRadius: "5px", padding: "1rem" }}>
                         <Settings />
                     </Box>
                 </Box>
 
-            </Stack>
+            </Box>
         </stateContext.Provider>
     </sessionContext.Provider>
 }
@@ -67,19 +65,33 @@ function NameInput({ session }: { session: GameSession }) {
     return <>
         <TextInput
             label="Choose name"
+            disabled={loading}
+            value={name}
             onChange={(event) => setName(event.currentTarget.value)}
             autoFocus />
         <Button variant="filled" disabled={loading} onClick={() => {
-            if (!loading) {
+            if (!loading && name != "") {
                 setLoading(true)
                 let listener = ({ data }: MessageEvent) => {
-                    console.log(data)
                     if (data === "namerejected") {
                         setLoading(false)
                         session.socket.removeEventListener("message", listener)
                     }
                 }
-                session.socket.addEventListener("message", listener)
+                let subscription = session.messages.subscribe(m => {
+                    if (m.type === "namerejected") {
+                        console.log("test")
+                        notifications.show({
+                            title: "Name Taken",
+                            message: "This name is already taken",
+                            color: "red",
+                            autoClose: 2000
+                        })
+                        setName("")
+                        setLoading(false)
+                        subscription.unsubscribe()
+                    }
+                })
                 session.socket.send(name)
             }
         }}>

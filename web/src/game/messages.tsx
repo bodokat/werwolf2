@@ -1,36 +1,38 @@
 import { Button, Group, List, Paper, Stack, Text } from "@mantine/core";
 import { ToClient } from "../../../bindings/ToClient";
 import { sessionContext, stateContext } from "./index";
-import React, { Fragment, useContext, useState } from "react";
+import React, { Fragment, ReactElement, useContext, useState } from "react";
 
 export function Messages() {
     let messages = useContext(stateContext)!.messages
-    return <Stack justify="flex-end" h={300}>
-        {messages.map((m, index) => <Paper key={index}>{renderMessage(m)}</Paper>)}
-    </Stack>
+    return <List listStyleType="none" spacing={"lg"} >
+        {messages.map((m, index) => RenderMessage({ message: m }))
+            .filter((e): e is React.ReactElement => e != null)
+            .map((e, index) => <List.Item key={index}>{e}</List.Item>)}
+    </List>
 }
 
-function renderMessage(message: ToClient): React.ReactNode {
+function RenderMessage({ message }: { message: ToClient }): React.ReactElement | null {
     switch (message.type) {
         case "welcome":
             console.warn("received initial message again")
-            return
+            return null
         case "newsettings":
-            return
+            return null
         case "joined":
-            return `${message.player.name} joined`
+            return <Paper>{message.player.name} joined</Paper>
         case "left":
-            return `${message.player.name} left`
+            return <Paper>{message.player.name} left</Paper>
         case "started":
-            return "Game started"
+            return <Paper>Game started</Paper>
         case "ended":
-            return "Game ended"
+            return <Paper>Game ended</Paper>
         case "nameaccepted":
-            return
+            return null
         case "namerejected":
-            return
+            return null
         case "text":
-            return message.text
+            return <Paper>{message.text}</Paper>
         case "question":
             return <QuestionMessage message={message} />
     }
@@ -39,11 +41,11 @@ function renderMessage(message: ToClient): React.ReactNode {
 function QuestionMessage({ message }: { message: ToClient & { type: "question" } }) {
     let session = useContext(sessionContext)!
     let [choice, setChoice] = useState<number>()
-    return <Fragment key={message.id}>
+    return <Fragment>
         <Text>{message.text}</Text>
         {(choice == undefined ?
             <Group> {message.options.map((option, index) => {
-                return <Button variant="filled"
+                return <Button variant="filled" key={index}
                     onClick={() => {
                         setChoice(index)
                         session.send({
@@ -56,7 +58,7 @@ function QuestionMessage({ message }: { message: ToClient & { type: "question" }
                     {option}
                 </Button>
             })} </Group> :
-            <Button disabled variant="filled">{message.options[choice]}</Button>
+            <Group><Button disabled variant="filled">{message.options[choice]}</Button> </Group>
         )}
     </Fragment>
 }

@@ -5,6 +5,7 @@ import { MantineProvider, Text } from '@mantine/core';
 import { GameSession } from "./api/gameSession";
 import { Login } from "./login";
 import { Game } from './game';
+import { Notifications } from '@mantine/notifications';
 
 
 
@@ -27,6 +28,7 @@ function App() {
 
   return (
     <MantineProvider withNormalizeCSS withGlobalStyles theme={{ colorScheme: 'dark' }}>
+      <Notifications />
       <RouterProvider router={router} />
     </MantineProvider>
   )
