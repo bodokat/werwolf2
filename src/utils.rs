@@ -22,11 +22,11 @@ where
     S: BuildHasher,
 {
     fn swap(&mut self, x: &Q, y: &Q) -> bool {
-        let a = match self.get_mut(&x) {
+        let a = match self.get_mut(x) {
             Some(a) => a,
             None => return false,
         } as *mut V;
-        let b = match self.get_mut(&y) {
+        let b = match self.get_mut(y) {
             Some(b) => b,
             None => return false,
         } as *mut V;

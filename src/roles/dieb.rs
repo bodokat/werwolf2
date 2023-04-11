@@ -1,4 +1,6 @@
-use super::*;
+use std::fmt::Display;
+
+use super::{async_trait, Data, Group, Role, RoleBehavior, Team};
 
 #[derive(Clone, Default)]
 pub struct Dieb;
@@ -28,7 +30,7 @@ struct DiebData {
 
 #[async_trait]
 impl RoleBehavior for DiebData {
-    async fn ask<'a>(&mut self, data: &GameData<'a>, index: usize) {
+    async fn ask<'a>(&mut self, data: &Data<'a>, index: usize) {
         let others = data
             .players
             .iter()
@@ -46,17 +48,17 @@ impl RoleBehavior for DiebData {
         self.to_steal = Some(others[to_steal].0);
     }
 
-    fn action<'a>(&mut self, data: &mut GameData<'a>, index: usize) {
+    fn action(&mut self, data: &mut Data<'_>, index: usize) {
         if let Some(to_steal) = self.to_steal {
             data.roles.swap(index, to_steal);
         }
     }
 
-    async fn after<'a>(&mut self, data: &GameData<'a>, index: usize) {
+    async fn after<'a>(&mut self, data: &Data<'a>, index: usize) {
         if let Some(to_steal) = self.to_steal {
             let name = data.players[to_steal].name.clone();
             let new_role = data.roles[index].to_string();
-            data.players[index].say(format!("{} war {}", name, new_role))
+            data.players[index].say(format!("{name} war {new_role}"));
         }
     }
 }

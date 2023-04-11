@@ -1,4 +1,4 @@
-#![allow(clippy::borrowed_box)]
+#![allow(clippy::match_on_vec_items)]
 
 use async_trait::async_trait;
 use dyn_clone::DynClone;
@@ -6,18 +6,18 @@ use once_cell::sync::Lazy;
 
 use std::{any::Any, fmt::Display};
 
-use crate::game::GameData;
+use crate::game::Data;
 
 pub static ALL_ROLES: Lazy<Vec<&dyn Role>> = Lazy::new(|| {
     let r: [Box<dyn Role>; 8] = [
-        Box::new(Dieb),
-        Box::new(Doppel),
         Box::new(Dorfbewohner),
-        Box::new(Freimaurer),
         Box::new(Werwolf),
         Box::new(Seherin),
         Box::new(Unruhestifterin),
+        Box::new(Freimaurer),
+        Box::new(Dieb),
         Box::new(Schlaflose),
+        Box::new(Doppel),
     ];
     IntoIterator::into_iter(r)
         .map(|b| (Box::leak(b) as &_))
@@ -46,35 +46,17 @@ pub trait Role: DynClone + Display + Send + Sync + Any {
     fn name(&self) -> String;
 }
 
-// impl<T> Role for T
-// where
-//     T: 'static + RoleBehavior + Clone,
-// {
-//     fn build(&self) -> Box<dyn RoleBehavior> {
-//         let t: T = self.clone();
-//         Box::new(t)
-//     }
-
-//     fn team(&self) -> Team {
-//         self.team()
-//     }
-
-//     fn group(&self) -> Group {
-//         self.group()
-//     }
-// }
-
 #[async_trait]
 pub trait RoleBehavior: Send + Sync {
-    async fn before_ask<'a>(&mut self, _data: &GameData<'a>, _index: usize) {}
+    async fn before_ask<'a>(&mut self, _data: &Data<'a>, _index: usize) {}
 
-    fn before_action<'a>(&mut self, _data: &mut GameData<'a>, _index: usize) {}
+    fn before_action(&mut self, _data: &mut Data<'_>, _index: usize) {}
 
-    async fn ask<'a>(&mut self, _data: &GameData<'a>, _index: usize) {}
+    async fn ask<'a>(&mut self, _data: &Data<'a>, _index: usize) {}
 
-    fn action<'a>(&mut self, _data: &mut GameData<'a>, _index: usize) {}
+    fn action(&mut self, _data: &mut Data<'_>, _index: usize) {}
 
-    async fn after<'a>(&mut self, _data: &GameData<'a>, _index: usize) {}
+    async fn after<'a>(&mut self, _data: &Data<'a>, _index: usize) {}
 }
 
 dyn_clone::clone_trait_object!(Role);

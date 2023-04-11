@@ -1,6 +1,6 @@
 use std::iter;
 
-use super::*;
+use super::{Any, Data, Display, Group, Role, RoleBehavior, Team, async_trait};
 
 use itertools::Itertools;
 use rand::prelude::{thread_rng, IteratorRandom};
@@ -34,7 +34,7 @@ impl Display for Werwolf {
 
 #[async_trait]
 impl RoleBehavior for Werwolf {
-    async fn ask<'a>(&mut self, data: &GameData<'a>, index: usize) {
+    async fn ask<'a>(&mut self, data: &Data<'a>, index: usize) {
         let mut others = data
             .roles
             .iter()
@@ -54,7 +54,7 @@ impl RoleBehavior for Werwolf {
                 .filter(|r| r.group() != Group::Wolf)
                 .choose(&mut thread_rng())
             {
-                Some(x) => format!("Du bist alleine. Eine Karte aus der Mitte ist: {}", x),
+                Some(x) => format!("Du bist alleine. Eine Karte aus der Mitte ist: {x}"),
                 None => "Du bist alleine. Es sind nur Werwölfe in der Mitte".to_string(),
             },
         };

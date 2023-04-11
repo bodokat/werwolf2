@@ -1,4 +1,4 @@
-use super::*;
+use super::{Data, Display, Group, Role, RoleBehavior, Team, async_trait};
 
 #[derive(Clone, Default)]
 pub struct Schlaflose;
@@ -23,7 +23,7 @@ impl Role for Schlaflose {
 
 #[async_trait]
 impl RoleBehavior for Schlaflose {
-    async fn after<'a>(&mut self, data: &GameData<'a>, index: usize) {
+    async fn after<'a>(&mut self, data: &Data<'a>, index: usize) {
         data.players[index].say(format!("Du bist jetzt {}", data.roles[index]));
     }
 }

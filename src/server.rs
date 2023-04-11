@@ -15,11 +15,11 @@ use tokio::sync::{oneshot, RwLock};
 
 use crate::lobby::Lobby;
 
-pub struct GameServer {
+pub struct Server {
     pub lobbies: Arc<RwLock<HashMap<String, Lobby>>>,
 }
 
-impl GameServer {
+impl Server {
     pub fn new() -> Self {
         Self {
             lobbies: Default::default(),
@@ -51,21 +51,21 @@ impl GameServer {
 }
 
 pub fn router() -> Router {
-    let app_state = Arc::new(GameServer::new());
+    let app_state = Arc::new(Server::new());
     Router::new()
         .route("/join/:lobby", get(join_lobby))
         .route("/new", post(create_lobby))
         .with_state(app_state)
 }
 
-async fn create_lobby(State(server): State<Arc<GameServer>>) -> impl IntoResponse {
+async fn create_lobby(State(server): State<Arc<Server>>) -> impl IntoResponse {
     server.create_lobby().await
 }
 
 async fn join_lobby(
     ws: WebSocketUpgrade,
     Path(lobby): Path<String>,
-    State(server): State<Arc<GameServer>>,
+    State(server): State<Arc<Server>>,
 ) -> Result<Response, StatusCode> {
     let lobby = server
         .lobbies
@@ -77,7 +77,7 @@ async fn join_lobby(
     Ok(ws.on_upgrade(move |socket| async move {
         lobby
             .0
-            .send(crate::lobby::LobbyEvent::New(socket))
+            .send(crate::lobby::Event::New(socket))
             .await
             .unwrap();
     }))

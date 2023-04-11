@@ -1,4 +1,4 @@
-use super::*;
+use super::{async_trait, Data, Display, Group, Role, RoleBehavior, Team};
 
 #[derive(Clone)]
 pub struct Doppel;
@@ -27,7 +27,7 @@ impl Display for Doppel {
     }
 }
 
-pub struct DoppelData {
+struct DoppelData {
     copied: Option<(&'static dyn Role, Box<dyn RoleBehavior>)>,
 }
 
@@ -39,7 +39,7 @@ impl Display for DoppelData {
 
 #[async_trait]
 impl RoleBehavior for DoppelData {
-    async fn before_ask<'a>(&mut self, data: &GameData<'a>, index: usize) {
+    async fn before_ask<'a>(&mut self, data: &Data<'a>, index: usize) {
         let others = data
             .players
             .iter()
@@ -56,30 +56,30 @@ impl RoleBehavior for DoppelData {
 
         let behavior = data.roles[to_copy].build();
         data.players[index].say(format!("Du bist jetzt {}", data.roles[to_copy]));
-        self.copied = Some((data.roles[to_copy].clone(), behavior));
+        self.copied = Some((data.roles[to_copy], behavior));
     }
 
-    fn before_action<'a>(&mut self, data: &mut GameData<'a>, index: usize) {
+    fn before_action(&mut self, data: &mut Data<'_>, index: usize) {
         if let Some((role, _)) = self.copied {
             data.roles[index] = role;
         }
     }
 
-    async fn ask<'a>(&mut self, data: &GameData<'a>, index: usize) {
+    async fn ask<'a>(&mut self, data: &Data<'a>, index: usize) {
         if let Some((_, behavior)) = &mut self.copied {
-            behavior.ask(data, index).await
+            behavior.ask(data, index).await;
         }
     }
 
-    fn action<'a>(&mut self, data: &mut GameData<'a>, index: usize) {
+    fn action(&mut self, data: &mut Data<'_>, index: usize) {
         if let Some((_, behavior)) = &mut self.copied {
-            behavior.action(data, index)
+            behavior.action(data, index);
         }
     }
 
-    async fn after<'a>(&mut self, data: &GameData<'a>, index: usize) {
+    async fn after<'a>(&mut self, data: &Data<'a>, index: usize) {
         if let Some((_, c)) = &mut self.copied {
-            c.after(data, index).await
+            c.after(data, index).await;
         }
     }
 }

@@ -1,6 +1,6 @@
 use std::iter::once;
 
-use super::*;
+use super::{Data, Display, Group, Role, RoleBehavior, Team, async_trait};
 
 #[derive(Clone, Default)]
 pub struct Seherin;
@@ -25,7 +25,7 @@ impl Role for Seherin {
 
 #[async_trait]
 impl RoleBehavior for Seherin {
-    async fn ask<'a>(&mut self, data: &GameData<'a>, index: usize) {
+    async fn ask<'a>(&mut self, data: &Data<'a>, index: usize) {
         let others = data.players.iter().enumerate().filter(|&(i, _)| i != index);
         let choices = others
             .map(|(u, _)| Some(u))

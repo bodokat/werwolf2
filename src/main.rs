@@ -1,4 +1,5 @@
-#![warn(clippy::all)]
+#![warn(clippy::pedantic)]
+#![allow(clippy::default_trait_access)]
 
 mod game;
 mod lobby;

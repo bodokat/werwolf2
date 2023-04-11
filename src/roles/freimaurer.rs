@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use super::*;
+use super::{Data, Display, Group, Role, RoleBehavior, Team, async_trait};
 use std::any::Any;
 use std::iter;
 
@@ -33,7 +33,7 @@ impl Role for Freimaurer {
 
 #[async_trait]
 impl RoleBehavior for Freimaurer {
-    async fn ask<'a>(&mut self, data: &GameData<'a>, index: usize) {
+    async fn ask<'a>(&mut self, data: &Data<'a>, index: usize) {
         let mut others = data
             .roles
             .iter()

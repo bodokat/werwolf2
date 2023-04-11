@@ -2,7 +2,7 @@ use std::iter;
 
 use itertools::Itertools;
 
-use super::*;
+use super::{Data, Display, Group, Role, RoleBehavior, Team, async_trait};
 
 #[derive(Clone, Default)]
 pub struct Gunstling;
@@ -27,7 +27,7 @@ impl Role for Gunstling {
 
 #[async_trait]
 impl RoleBehavior for Gunstling {
-    async fn ask<'a>(&mut self, data: &GameData<'a>, index: usize) {
+    async fn ask<'a>(&mut self, data: &Data<'a>, index: usize) {
         let mut wolves = data
             .roles
             .iter()

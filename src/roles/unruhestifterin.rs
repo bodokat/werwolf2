@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use super::*;
+use super::{async_trait, Data, Display, Group, Role, RoleBehavior, Team};
 
 #[derive(Clone)]
 pub struct Unruhestifterin;
@@ -30,13 +30,13 @@ impl Role for Unruhestifterin {
 }
 
 #[derive(Clone)]
-pub struct UnruhestifterinData {
+struct UnruhestifterinData {
     to_swap: Option<(usize, usize)>,
 }
 
 #[async_trait]
 impl RoleBehavior for UnruhestifterinData {
-    async fn ask<'a>(&mut self, data: &GameData<'a>, index: usize) {
+    async fn ask<'a>(&mut self, data: &Data<'a>, index: usize) {
         data.players[index].say("Du darfst nun zwei Spieler vertauschen".into());
 
         let others = data
@@ -76,7 +76,7 @@ impl RoleBehavior for UnruhestifterinData {
         self.to_swap = Some((first.0, second.0));
     }
 
-    fn action<'a>(&mut self, data: &mut GameData<'a>, _index: usize) {
+    fn action(&mut self, data: &mut Data<'_>, _index: usize) {
         if let Some((x, y)) = self.to_swap {
             data.roles.swap(x, y);
         }

@@ -1,5 +1,5 @@
 use crate::{
-    lobby::{LobbySettings, PlayerMessage},
+    lobby::{PlayerMessage, Settings},
     message,
 };
 use futures::{
@@ -14,17 +14,14 @@ use tokio::sync::oneshot;
 
 use crate::roles::{Group, Role, RoleBehavior, Team};
 
-pub async fn start_game(
-    players: Vec<(&String, UnboundedSender<PlayerMessage>)>,
-    settings: &LobbySettings,
-) {
+pub async fn start(players: Vec<(&String, UnboundedSender<PlayerMessage>)>, settings: &Settings) {
     let (mut data, mut behaviors) = setup(players, settings);
 
     let roles_string = data.roles.iter().join(" | ");
 
     data.players
         .iter()
-        .for_each(|c| c.say(format!("Die Rollen sind:\n{}", roles_string)));
+        .for_each(|c| c.say(format!("Die Rollen sind:\n{roles_string}")));
 
     data.players
         .iter()
@@ -88,7 +85,6 @@ pub async fn start_game(
         .collect::<FuturesUnordered<_>>()
         .fold(vec![0; data.roles.len()], |mut acc, x| {
             acc[x] += 1;
-            println!("acc: {:?}", acc);
             ready(acc)
         })
         .await;
@@ -192,7 +188,7 @@ pub async fn start_game(
             })
             .join(", ");
 
-        let content = &format!("Die Gewinner sind: {}", winners);
+        let content = &format!("Die Gewinner sind: {winners}");
         data.players.iter().for_each(|p| p.say(content.to_string()));
     }
 
@@ -201,7 +197,7 @@ pub async fn start_game(
         .for_each(|p| p.say("-------------".into()));
 }
 
-pub struct GameData<'a> {
+pub struct Data<'a> {
     pub players: Vec<Player<'a>>,
     pub roles: Vec<&'static dyn Role>,
     pub extra_roles: Vec<&'static dyn Role>,
@@ -214,8 +210,8 @@ pub struct Player<'a> {
 
 fn setup<'a>(
     players: Vec<(&'a String, UnboundedSender<PlayerMessage>)>,
-    settings: &'a LobbySettings,
-) -> (GameData<'a>, Vec<Box<dyn RoleBehavior>>) {
+    settings: &'a Settings,
+) -> (Data<'a>, Vec<Box<dyn RoleBehavior>>) {
     let mut all_roles = settings
         .role_amounts
         .iter()
@@ -239,7 +235,7 @@ fn setup<'a>(
         .collect();
 
     (
-        GameData {
+        Data {
             players,
             roles,
             extra_roles,

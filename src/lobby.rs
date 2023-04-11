@@ -10,27 +10,27 @@ use axum::extract::ws::{Message, WebSocket};
 use tokio::sync::{mpsc, oneshot};
 use tokio::sync::{Mutex, RwLock};
 
-use crate::game::start_game;
+use crate::game::start;
 use crate::message::{self, ToClient, ToServer};
 use crate::roles::{self, Role};
 
 #[derive(Clone)]
-pub struct Lobby(pub mpsc::Sender<LobbyEvent>);
+pub struct Lobby(pub mpsc::Sender<Event>);
 
 #[derive(Debug)]
-pub enum LobbyEvent {
+pub enum Event {
     New(WebSocket),
 }
 
 #[derive(Default, Clone)]
-pub struct LobbySettings {
+pub struct Settings {
     pub available_roles: Vec<&'static dyn Role>,
     pub role_amounts: Vec<usize>,
     pub admin: Option<String>,
 }
 
-impl From<LobbySettings> for message::LobbySettings {
-    fn from(value: LobbySettings) -> Self {
+impl From<Settings> for message::LobbySettings {
+    fn from(value: Settings) -> Self {
         Self {
             available_roles: value.available_roles.iter().map(|r| r.name()).collect(),
             roles: value.role_amounts,
@@ -41,7 +41,7 @@ impl From<LobbySettings> for message::LobbySettings {
 
 struct LobbyInner {
     players: RwLock<HashMap<String, mpsc::UnboundedSender<PlayerMessage>>>,
-    settings: RwLock<LobbySettings>,
+    settings: RwLock<Settings>,
     remove_lobby: Mutex<Option<oneshot::Sender<()>>>,
 }
 
@@ -52,7 +52,7 @@ impl Lobby {
         let inner = Arc::new(LobbyInner {
             players: Default::default(),
             remove_lobby: Mutex::new(Some(remove_lobby)),
-            settings: RwLock::new(LobbySettings {
+            settings: RwLock::new(Settings {
                 available_roles: roles::ALL_ROLES.clone(),
                 role_amounts: vec![0; roles::ALL_ROLES.len()],
                 ..Default::default()
@@ -66,11 +66,11 @@ impl Lobby {
 }
 
 impl LobbyInner {
-    async fn lobby_loop(self: Arc<Self>, mut rx: mpsc::Receiver<LobbyEvent>) {
+    async fn lobby_loop(self: Arc<Self>, mut rx: mpsc::Receiver<Event>) {
         while let Some(msg) = rx.recv().await {
             tracing::info!("New Lobby Message");
             match msg {
-                LobbyEvent::New(mut socket) => {
+                Event::New(mut socket) => {
                     let this = self.clone();
                     tokio::spawn(async move {
                         let players = {
@@ -200,7 +200,7 @@ async fn handle_player_messages(
                     async move {
                         let (players, settings) =
                             tokio::join!(lobby.players.read(), lobby.settings.read());
-                        if !(settings.admin == Some(name)) {
+                        if settings.admin != Some(name) {
                             return;
                         }
                         if settings.role_amounts.iter().sum::<usize>() < players.len() {
@@ -211,10 +211,10 @@ async fn handle_player_messages(
                                 .unwrap();
                         });
                         let players_vec = players.iter().map(|(n, s)| (n, s.clone())).collect();
-                        start_game(players_vec, &(*lobby.settings.read().await)).await;
+                        start(players_vec, &(*lobby.settings.read().await)).await;
                         players.values().for_each(|s| {
                             s.send(PlayerMessage::Other(ToClient::Ended)).unwrap();
-                        })
+                        });
                     }
                 });
             }
@@ -223,7 +223,7 @@ async fn handle_player_messages(
                     let lobby = lobby.clone();
                     let name = name.clone();
                     async move {
-                        if !(lobby.settings.read().await.admin == Some(name)) {
+                        if lobby.settings.read().await.admin != Some(name) {
                             return;
                         }
                         {
@@ -235,7 +235,7 @@ async fn handle_player_messages(
                                 settings.clone().into(),
                             )))
                             .unwrap();
-                        })
+                        });
                     }
                 });
             } //TODO
@@ -246,8 +246,7 @@ async fn handle_player_messages(
     loop {
         tokio::select! {
             msg = socket.recv() => {
-                match msg {
-                    Some(Ok(msg)) => {
+                if let Some(Ok(msg)) = msg {
                         if let Message::Text(msg) = msg{
                         match message::ToServer::try_from(msg.as_str()) {
                             Ok(msg) => {
@@ -256,10 +255,8 @@ async fn handle_player_messages(
                                 tracing::warn!("Deserialization error: {e}, message: {msg}");
                             }
                         }}
-                    }
-                    _ => {(lobby.clone()).remove(name).await; return;}
+                    } else {(lobby.clone()).remove(name).await; return;}
                 }
-            }
             msg = messages.recv() => {
                 if let Some(msg) = msg {
                     match msg {
@@ -285,5 +282,5 @@ async fn handle_player_messages(
     }
 }
 fn validate_name(name: &str) -> bool {
-    name != "" && name.len() < 20
+    !name.is_empty() && name.len() < 20
 }
