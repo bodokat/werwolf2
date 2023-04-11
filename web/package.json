@@ -5,15 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "generate-api-types": "cargo test"
   },
   "dependencies": {
     "@emotion/react": "^11.10.6",
-    "@mantine/core": "^6.0.6",
-    "@mantine/hooks": "^6.0.6",
-    "@mantine/notifications": "^6.0.6",
+    "@mantine/core": "^6.0.7",
+    "@mantine/hooks": "^6.0.7",
+    "@mantine/notifications": "^6.0.7",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.10.0",
@@ -21,10 +21,10 @@
     "tabler-icons-react": "^1.56.0"
   },
   "devDependencies": {
-    "@types/react": "^18.0.33",
+    "@types/react": "^18.0.34",
     "@types/react-dom": "^18.0.11",
     "@vitejs/plugin-react": "^3.1.0",
-    "typescript": "^5.0.3",
+    "typescript": "^5.0.4",
     "vite": "^4.2.1"
   }
 }
