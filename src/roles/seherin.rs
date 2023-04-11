@@ -1,6 +1,6 @@
 use std::iter::once;
 
-use super::{Data, Display, Group, Role, RoleBehavior, Team, async_trait};
+use super::{async_trait, Data, Display, Group, Role, RoleBehavior, Team};
 
 #[derive(Clone, Default)]
 pub struct Seherin;
@@ -43,7 +43,9 @@ impl RoleBehavior for Seherin {
                 .collect(),
         );
 
-        match choices[response.await] {
+        let choice = choices[response.await];
+
+        match choice {
             Some(u) => {
                 data.players[index].say(format!(
                     "{} hat die Rolle {}",

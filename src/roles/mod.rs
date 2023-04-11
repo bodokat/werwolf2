@@ -1,7 +1,4 @@
-#![allow(clippy::match_on_vec_items)]
-
 use async_trait::async_trait;
-use dyn_clone::DynClone;
 use once_cell::sync::Lazy;
 
 use std::{any::Any, fmt::Display};
@@ -36,7 +33,7 @@ pub enum Group {
     Wolf,
 }
 
-pub trait Role: DynClone + Display + Send + Sync + Any {
+pub trait Role: Display + Send + Sync + Any {
     fn build(&self) -> Box<dyn RoleBehavior>;
 
     fn team(&self) -> Team;
@@ -58,8 +55,6 @@ pub trait RoleBehavior: Send + Sync {
 
     async fn after<'a>(&mut self, _data: &Data<'a>, _index: usize) {}
 }
-
-dyn_clone::clone_trait_object!(Role);
 
 mod dorfbewohner;
 pub use dorfbewohner::Dorfbewohner;

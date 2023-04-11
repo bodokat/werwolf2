@@ -15,13 +15,7 @@ use tokio::sync::oneshot;
 use crate::roles::{Group, Role, RoleBehavior, Team};
 
 pub async fn start(players: Vec<(&String, UnboundedSender<PlayerMessage>)>, settings: &Settings) {
-    let (mut data, mut behaviors) = setup(players, settings);
-
-    let roles_string = data.roles.iter().join(" | ");
-
-    data.players
-        .iter()
-        .for_each(|c| c.say(format!("Die Rollen sind:\n{roles_string}")));
+    let (mut data, behaviors) = setup(players, settings);
 
     data.players
         .iter()
@@ -30,39 +24,7 @@ pub async fn start(players: Vec<(&String, UnboundedSender<PlayerMessage>)>, sett
 
     // --- Action
 
-    behaviors
-        .iter_mut()
-        .enumerate()
-        .map(|(idx, behavior)| behavior.before_ask(&data, idx))
-        .collect::<FuturesUnordered<_>>()
-        .for_each(|_| ready(()))
-        .await;
-
-    behaviors
-        .iter_mut()
-        .enumerate()
-        .for_each(|(idx, behavior)| behavior.before_action(&mut data, idx));
-
-    behaviors
-        .iter_mut()
-        .enumerate()
-        .map(|(idx, behavior)| behavior.ask(&data, idx))
-        .collect::<FuturesUnordered<_>>()
-        .for_each(|_| ready(()))
-        .await;
-
-    behaviors
-        .iter_mut()
-        .enumerate()
-        .for_each(|(idx, behavior)| behavior.action(&mut data, idx));
-
-    behaviors
-        .iter_mut()
-        .enumerate()
-        .map(|(idx, behavior)| behavior.after(&data, idx))
-        .collect::<FuturesUnordered<_>>()
-        .for_each(|_| ready(()))
-        .await;
+    actions(behaviors, &mut data).await;
 
     // --- Voting
 
@@ -70,24 +32,7 @@ pub async fn start(players: Vec<(&String, UnboundedSender<PlayerMessage>)>, sett
         .iter()
         .for_each(|c| c.say("Die Abstimmung beginnt".into()));
 
-    let players = &data.players;
-    let votes: Vec<u32> = data
-        .players
-        .iter()
-        .map(|player| {
-            player.choice(
-                "Wähle einen Mitspieler".into(),
-                (0..players.len())
-                    .map(|idx| players[idx].name.clone())
-                    .collect(),
-            )
-        })
-        .collect::<FuturesUnordered<_>>()
-        .fold(vec![0; data.roles.len()], |mut acc, x| {
-            acc[x] += 1;
-            ready(acc)
-        })
-        .await;
+    let votes = do_vote(&data).await;
 
     {
         let content = format!(
@@ -195,6 +140,64 @@ pub async fn start(players: Vec<(&String, UnboundedSender<PlayerMessage>)>, sett
     data.players
         .iter()
         .for_each(|p| p.say("-------------".into()));
+}
+
+async fn do_vote(data: &Data<'_>) -> Vec<u32> {
+    let players = &data.players;
+    let votes: Vec<u32> = data
+        .players
+        .iter()
+        .map(|player| {
+            player.choice(
+                "Wähle einen Mitspieler".into(),
+                (0..players.len())
+                    .map(|idx| players[idx].name.clone())
+                    .collect(),
+            )
+        })
+        .collect::<FuturesUnordered<_>>()
+        .fold(vec![0; data.roles.len()], |mut acc, x| {
+            acc[x] += 1;
+            ready(acc)
+        })
+        .await;
+    votes
+}
+
+async fn actions(mut behaviors: Vec<Box<dyn RoleBehavior>>, data: &mut Data<'_>) {
+    behaviors
+        .iter_mut()
+        .enumerate()
+        .map(|(idx, behavior)| behavior.before_ask(&*data, idx))
+        .collect::<FuturesUnordered<_>>()
+        .for_each(|_| ready(()))
+        .await;
+
+    behaviors
+        .iter_mut()
+        .enumerate()
+        .for_each(|(idx, behavior)| behavior.before_action(data, idx));
+
+    behaviors
+        .iter_mut()
+        .enumerate()
+        .map(|(idx, behavior)| behavior.ask(&*data, idx))
+        .collect::<FuturesUnordered<_>>()
+        .for_each(|_| ready(()))
+        .await;
+
+    behaviors
+        .iter_mut()
+        .enumerate()
+        .for_each(|(idx, behavior)| behavior.action(data, idx));
+
+    behaviors
+        .iter_mut()
+        .enumerate()
+        .map(|(idx, behavior)| behavior.after(&*data, idx))
+        .collect::<FuturesUnordered<_>>()
+        .for_each(|_| ready(()))
+        .await;
 }
 
 pub struct Data<'a> {

@@ -6,7 +6,7 @@ mod lobby;
 mod roles;
 mod utils;
 
-use std::net::SocketAddr;
+use std::{net::SocketAddr, path::Path};
 
 use axum::Router;
 use tower_http::{
@@ -29,9 +29,10 @@ async fn main() {
         Ok(Ok(port)) => port,
         _ => 3000,
     };
+    let web_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("web/dist");
+    let index_path = web_path.join("index.html");
 
-    let path = std::path::Path::new("web/dist/index.html");
-    if !path.is_file() {
+    if !index_path.is_file() {
         tracing::error!("index.html not found");
     }
 
@@ -43,9 +44,7 @@ async fn main() {
                 .on_response(trace::DefaultOnResponse::new().level(Level::INFO)),
         )
         .layer(CorsLayer::new().allow_origin(Any))
-        .fallback_service(
-            ServeDir::new("./web/dist").not_found_service(ServeFile::new("./web/dist/index.html")),
-        );
+        .fallback_service(ServeDir::new(web_path).not_found_service(ServeFile::new(index_path)));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     println!("listening on http://{addr}");

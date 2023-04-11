@@ -10,25 +10,22 @@ default-run = "werwolf"
 # path = "src/gen_ts.rs"
 
 [dependencies]
-axum = { version = "0.6.1", features = ["ws"] }
+tokio = { version = "1.6", features = ["full"] }
+tokio-stream = "0.1"
+futures = "0.3"
+
+axum = { version = "0.6", features = ["ws"] }
 tower = { version = "0.4", features = ["util"] }
 tower-http = { version = "0.4.0", features = ["fs", "trace", "cors"] }
 
-schemars = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+ts-rs = "6.2"
 
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 async-trait = "0.1"
-dotenv = "0.15"
-dyn-clone = "1.0"
-futures = "0.3"
-itertools = "0.10.0"
-rand = "0.8.5"
-tokio = { version = "1.6", features = ["full"] }
-tokio-stream = "0.1"
-
+itertools = "0.10"
+rand = "0.8"
 once_cell = "1.17"
-ts-rs = "6.2"
