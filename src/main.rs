@@ -20,16 +20,19 @@ mod server;
 
 #[tokio::main]
 async fn main() {
-    // tracing_subscriber::registry()
-    //     .with(tracing_subscriber::EnvFilter::new(
-    //         std::env::var("RUST_LOG").unwrap_or_else(|_| "werwolf=trace".into()),
-    //     ))
-    //     .with(tracing_subscriber::fmt::layer())
-    //     .init();
-
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .init();
+
+    let port = match std::env::var("PORT").map(|s| s.parse()) {
+        Ok(Ok(port)) => port,
+        _ => 3000,
+    };
+
+    let path = std::path::Path::new("web/dist/index.html");
+    if !path.is_file() {
+        tracing::error!("index.html not found");
+    }
 
     let app = Router::new()
         .nest("/api", server::router())
@@ -43,8 +46,8 @@ async fn main() {
             ServeDir::new("./web/dist").not_found_service(ServeFile::new("./web/dist/index.html")),
         );
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    tracing::debug!("listening on http://{addr}");
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    println!("listening on http://{addr}");
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await
