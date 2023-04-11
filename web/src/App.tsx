@@ -1,7 +1,5 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
-import { MantineProvider, Text } from '@mantine/core';
+import { MantineProvider } from '@mantine/core';
 import { GameSession } from "./api/gameSession";
 import { Login } from "./login";
 import { Game } from './game';

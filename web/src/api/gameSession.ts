@@ -33,7 +33,7 @@ export class GameSession {
         let initialState = create_initial_state(initialMessage)
         return new GameSession({ socket, lobby, messages, initialState })
     }
-    constructor({ socket, lobby, messages, initialState }: { socket: WebSocket, lobby: string, messages: Subject<ToClient>, initialState: SessionState }) {
+    constructor({ socket, lobby, messages, initialState }: { socket: WebSocket, lobby: string, messages: Subject<ToClient>, initialState: GameState }) {
         this.socket = socket
         this.messages = messages
 
@@ -52,10 +52,10 @@ export class GameSession {
 
     messages: Subject<ToClient>
 
-    state: BehaviorSubject<SessionState>
+    state: BehaviorSubject<GameState>
 }
 
-function stateReducer(state: SessionState, message: ToClient): SessionState {
+function stateReducer(state: GameState, message: ToClient): GameState {
     let new_state = { ...state }
     new_state.messages.push(message)
     switch (message.type) {
@@ -106,7 +106,7 @@ const new_lobby_url: URL = new URL(`${import.meta.env.DEV ? "http" : "https"}://
 
 const join_lobby_url = (lobby: string) => new URL(`${import.meta.env.DEV ? "ws" : "wss"}://${api_url}/join/${lobby}`)
 
-export type SessionState = {
+export type GameState = {
     messages: ToClient[],
     players: string[],
     me: string | null,
@@ -114,7 +114,7 @@ export type SessionState = {
     settings: LobbySettings
 }
 
-function create_initial_state(message: WelcomeMessage): SessionState {
+function create_initial_state(message: WelcomeMessage): GameState {
     return {
         messages: [],
         players: message.players,

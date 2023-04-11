@@ -1,6 +1,6 @@
 import { Navigate, useLoaderData, useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
-import { GameSession, SessionState } from "../api/gameSession";
+import { GameSession, GameState } from "../api/gameSession";
 import { notifications } from "@mantine/notifications";
 import { createContext, useState } from "react";
 import { useSubject } from "../utils/useSubject";
@@ -10,7 +10,7 @@ import { Messages } from "./messages";
 import { Players } from "./players";
 import { Settings } from "./settings";
 
-export let stateContext = createContext<SessionState | null>(null)
+export let stateContext = createContext<GameState | null>(null)
 export let sessionContext = createContext<GameSession | null>(null)
 
 export function Game() {
@@ -25,44 +25,42 @@ export function Game() {
 
     let state = useSubject(session.state)
 
-    return <sessionContext.Provider value={session}>
-        <stateContext.Provider value={state}>
-            <Box sx={{ width: "100vw", height: "100vh", display: "grid", gridTemplateRows: "5vh 95vh" }}>
+    return <>
+        <NameInput session={session} state={state} />
+        <sessionContext.Provider value={session}>
+            <stateContext.Provider value={state}>
+                <Box sx={{ width: "100vw", height: "100vh", display: "grid", gridTemplateRows: "auto 1fr" }}>
+
+                    <Group sx={{ padding: "1rem" }}>
+                        Verbunden mit {window.location.href}
+                        <ActionIcon onClick={() => window.navigator.clipboard.writeText(window.location.href)}>
+                            <Clipboard />
+                        </ActionIcon>
+                    </Group>
 
 
-                <Group sx={{ padding: "1rem" }}>
-                    Verbunden mit {window.location.href}
-                    <ActionIcon onClick={() => window.navigator.clipboard.writeText(window.location.href)}>
-                        <Clipboard />
-                    </ActionIcon>
-                </Group>
-
-
-                <Box sx={{ display: "grid", gridTemplateColumns: "3fr 2fr", columnGap: "10px", padding: "2rem" }}>
-                    <Box sx={{ gridColumn: 1, gridRowStart: 1, gridRowEnd: 3, border: "2px solid #595959", borderRadius: "5px", padding: "1rem" }}>
-                        {(
-                            state.me ? <Messages /> :
-                                <NameInput session={session} />
-                        )}
-
+                    <Box sx={{ display: "grid", gridTemplateColumns: "3fr 2fr", columnGap: "10px", padding: "2rem", overflow: "auto" }}>
+                        <Box sx={{ gridColumn: 1, gridRowStart: 1, gridRowEnd: 3, border: "2px solid #595959", borderRadius: "5px", padding: "1rem", overflow: "auto" }}>
+                            <Messages />
+                        </Box>
+                        <Box sx={{ gridColumn: 2, gridRow: 1, minHeight: "10%", border: "2px solid #595959", borderRadius: "5px", padding: "1rem", overflow: "auto" }}>
+                            <Players />
+                        </Box>
+                        <Box sx={{ gridColumn: 2, gridRow: 2, minWidth: rem(25), border: "2px solid #595959", borderRadius: "5px", padding: "1rem", overflow: "auto" }}>
+                            <Settings />
+                        </Box>
                     </Box>
-                    <Box sx={{ gridColumn: 2, gridRow: 1, minHeight: "10%", border: "2px solid #595959", borderRadius: "5px", padding: "1rem" }}>
-                        <Players />
-                    </Box>
-                    <Box sx={{ gridColumn: 2, gridRow: 2, minWidth: rem(25), border: "2px solid #595959", borderRadius: "5px", padding: "1rem" }}>
-                        <Settings />
-                    </Box>
+
                 </Box>
-
-            </Box>
-        </stateContext.Provider>
-    </sessionContext.Provider>
+            </stateContext.Provider>
+        </sessionContext.Provider>
+    </>
 }
 
-function NameInput({ session }: { session: GameSession }) {
+function NameInput({ session, state }: { session: GameSession, state: GameState }) {
     const [name, setName] = useState("")
     const [loading, setLoading] = useState(false)
-    return <>
+    return <Modal opened={state.me == null} onClose={() => { }} closeOnEscape={false} closeOnClickOutside={false} withCloseButton={false}>
         <TextInput
             label="Choose name"
             disabled={loading}
@@ -97,7 +95,7 @@ function NameInput({ session }: { session: GameSession }) {
         }}>
             Set Name
         </Button>
-    </>
+    </Modal>
 
 
 
