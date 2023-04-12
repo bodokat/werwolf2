@@ -2,10 +2,12 @@ use std::fmt::Display;
 
 use super::{async_trait, Data, Group, Role, RoleBehavior, Team};
 
-#[derive(Clone, Default)]
-pub struct Dieb;
+pub static Dieb: &'static dyn Role = &DiebImpl;
 
-impl Role for Dieb {
+#[derive(Clone, Default)]
+struct DiebImpl;
+
+impl Role for DiebImpl {
     fn build(&self) -> Box<dyn RoleBehavior> {
         Box::new(DiebData { to_steal: None })
     }
@@ -63,7 +65,7 @@ impl RoleBehavior for DiebData {
     }
 }
 
-impl Display for Dieb {
+impl Display for DiebImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Dieb")
     }

@@ -53,7 +53,7 @@ impl Lobby {
             players: Default::default(),
             remove_lobby: Mutex::new(Some(remove_lobby)),
             settings: RwLock::new(Settings {
-                available_roles: roles::ALL_ROLES.clone(),
+                available_roles: roles::ALL_ROLES.to_owned(),
                 role_amounts: vec![0; roles::ALL_ROLES.len()],
                 ..Default::default()
             }),

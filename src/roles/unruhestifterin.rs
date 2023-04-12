@@ -2,16 +2,18 @@ use itertools::Itertools;
 
 use super::{async_trait, Data, Display, Group, Role, RoleBehavior, Team};
 
-#[derive(Clone)]
-pub struct Unruhestifterin;
+pub static Unruhestifterin: &'static dyn Role = &UnruhestifterinImpl;
 
-impl Display for Unruhestifterin {
+#[derive(Clone)]
+struct UnruhestifterinImpl;
+
+impl Display for UnruhestifterinImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Unruhestifterin")
     }
 }
 
-impl Role for Unruhestifterin {
+impl Role for UnruhestifterinImpl {
     fn build(&self) -> Box<dyn RoleBehavior> {
         Box::new(UnruhestifterinData { to_swap: None })
     }

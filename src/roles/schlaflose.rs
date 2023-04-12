@@ -1,9 +1,11 @@
-use super::{Data, Display, Group, Role, RoleBehavior, Team, async_trait};
+use super::{async_trait, Data, Display, Group, Role, RoleBehavior, Team};
+
+pub static Schlaflose: &'static dyn Role = &SchlafloseImpl;
 
 #[derive(Clone, Default)]
-pub struct Schlaflose;
+struct SchlafloseImpl;
 
-impl Role for Schlaflose {
+impl Role for SchlafloseImpl {
     fn team(&self) -> Team {
         Team::Dorf
     }
@@ -13,7 +15,7 @@ impl Role for Schlaflose {
     }
 
     fn build(&self) -> Box<dyn RoleBehavior> {
-        Box::new(Schlaflose)
+        Box::new(SchlafloseImpl)
     }
 
     fn name(&self) -> String {
@@ -22,13 +24,13 @@ impl Role for Schlaflose {
 }
 
 #[async_trait]
-impl RoleBehavior for Schlaflose {
+impl RoleBehavior for SchlafloseImpl {
     async fn after<'a>(&mut self, data: &Data<'a>, index: usize) {
         data.players[index].say(format!("Du bist jetzt {}", data.roles[index]));
     }
 }
 
-impl Display for Schlaflose {
+impl Display for SchlafloseImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Schlaflose")
     }

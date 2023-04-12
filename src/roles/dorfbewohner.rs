@@ -1,11 +1,12 @@
 use super::{async_trait, Display, Group, Role, RoleBehavior, Team};
 
+pub static Dorfbewohner: &'static dyn Role = &DorfbewohnerImpl;
 #[derive(Clone, Default)]
-pub struct Dorfbewohner;
+struct DorfbewohnerImpl;
 
-impl Role for Dorfbewohner {
+impl Role for DorfbewohnerImpl {
     fn build(&self) -> Box<dyn RoleBehavior> {
-        Box::new(Dorfbewohner)
+        Box::new(DorfbewohnerImpl)
     }
 
     fn team(&self) -> Team {
@@ -22,9 +23,9 @@ impl Role for Dorfbewohner {
 }
 
 #[async_trait]
-impl RoleBehavior for Dorfbewohner {}
+impl RoleBehavior for DorfbewohnerImpl {}
 
-impl Display for Dorfbewohner {
+impl Display for DorfbewohnerImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Dorfbewohner")
     }

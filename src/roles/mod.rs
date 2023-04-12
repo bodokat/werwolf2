@@ -1,25 +1,36 @@
+#![allow(non_upper_case_globals)]
+
 use async_trait::async_trait;
-use once_cell::sync::Lazy;
 
 use std::{any::Any, fmt::Display};
 
 use crate::game::Data;
 
-pub static ALL_ROLES: Lazy<Vec<&dyn Role>> = Lazy::new(|| {
-    let r: [Box<dyn Role>; 8] = [
-        Box::new(Dorfbewohner),
-        Box::new(Werwolf),
-        Box::new(Seherin),
-        Box::new(Unruhestifterin),
-        Box::new(Freimaurer),
-        Box::new(Dieb),
-        Box::new(Schlaflose),
-        Box::new(Doppel),
-    ];
-    IntoIterator::into_iter(r)
-        .map(|b| (Box::leak(b) as &_))
-        .collect()
-});
+mod dieb;
+mod doppel;
+mod dorfbewohner;
+mod freimaurer;
+mod gunstling;
+mod schlaflose;
+mod seherin;
+mod unruhestifterin;
+mod werwolf;
+pub use self::{
+    dieb::Dieb, doppel::Doppel, dorfbewohner::Dorfbewohner, freimaurer::Freimaurer,
+    gunstling::Gunstling, schlaflose::Schlaflose, seherin::Seherin,
+    unruhestifterin::Unruhestifterin, werwolf::Werwolf,
+};
+pub static ALL_ROLES: &[&dyn Role] = &[
+    Dieb,
+    Doppel,
+    Dorfbewohner,
+    Freimaurer,
+    Gunstling,
+    Schlaflose,
+    Seherin,
+    Unruhestifterin,
+    Werwolf,
+];
 
 #[derive(PartialEq, Eq)]
 pub enum Team {
@@ -55,30 +66,3 @@ pub trait RoleBehavior: Send + Sync {
 
     async fn after<'a>(&mut self, _data: &Data<'a>, _index: usize) {}
 }
-
-mod dorfbewohner;
-pub use dorfbewohner::Dorfbewohner;
-
-mod werwolf;
-pub use werwolf::Werwolf;
-
-mod seherin;
-pub use seherin::Seherin;
-
-mod dieb;
-pub use dieb::Dieb;
-
-mod unruhestifterin;
-pub use unruhestifterin::Unruhestifterin;
-
-mod schlaflose;
-pub use schlaflose::Schlaflose;
-
-mod doppel;
-pub use doppel::Doppel;
-
-mod freimaurer;
-pub use freimaurer::Freimaurer;
-
-mod gunstling;
-pub use gunstling::Gunstling;

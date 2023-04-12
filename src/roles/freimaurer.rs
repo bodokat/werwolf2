@@ -1,21 +1,23 @@
 use itertools::Itertools;
 
-use super::{Data, Display, Group, Role, RoleBehavior, Team, async_trait};
+use super::{async_trait, Data, Display, Group, Role, RoleBehavior, Team};
 use std::any::Any;
 use std::iter;
 
-#[derive(Clone, Default)]
-pub struct Freimaurer;
+pub static Freimaurer: &'static dyn Role = &FreimaurerImpl;
 
-impl Display for Freimaurer {
+#[derive(Clone, Default)]
+struct FreimaurerImpl;
+
+impl Display for FreimaurerImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Freimaurer")
     }
 }
 
-impl Role for Freimaurer {
+impl Role for FreimaurerImpl {
     fn build(&self) -> Box<dyn RoleBehavior> {
-        Box::new(Freimaurer)
+        Box::new(FreimaurerImpl)
     }
 
     fn team(&self) -> Team {
@@ -32,13 +34,13 @@ impl Role for Freimaurer {
 }
 
 #[async_trait]
-impl RoleBehavior for Freimaurer {
+impl RoleBehavior for FreimaurerImpl {
     async fn ask<'a>(&mut self, data: &Data<'a>, index: usize) {
         let mut others = data
             .roles
             .iter()
             .enumerate()
-            .filter(|&(_, &r)| (*r).type_id() == Freimaurer.type_id());
+            .filter(|&(_, &r)| (*r).type_id() == FreimaurerImpl.type_id());
 
         let content = match others.next() {
             Some((x, _)) => format!(

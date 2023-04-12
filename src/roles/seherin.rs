@@ -2,10 +2,12 @@ use std::iter::once;
 
 use super::{async_trait, Data, Display, Group, Role, RoleBehavior, Team};
 
-#[derive(Clone, Default)]
-pub struct Seherin;
+pub static Seherin: &'static dyn Role = &SeherinImpl;
 
-impl Role for Seherin {
+#[derive(Clone, Default)]
+struct SeherinImpl;
+
+impl Role for SeherinImpl {
     fn team(&self) -> Team {
         Team::Dorf
     }
@@ -15,7 +17,7 @@ impl Role for Seherin {
     }
 
     fn build(&self) -> Box<dyn RoleBehavior> {
-        Box::new(Seherin)
+        Box::new(SeherinImpl)
     }
 
     fn name(&self) -> String {
@@ -24,7 +26,7 @@ impl Role for Seherin {
 }
 
 #[async_trait]
-impl RoleBehavior for Seherin {
+impl RoleBehavior for SeherinImpl {
     async fn ask<'a>(&mut self, data: &Data<'a>, index: usize) {
         let others = data.players.iter().enumerate().filter(|&(i, _)| i != index);
         let choices = others
@@ -62,7 +64,7 @@ impl RoleBehavior for Seherin {
     }
 }
 
-impl Display for Seherin {
+impl Display for SeherinImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Seherin")
     }

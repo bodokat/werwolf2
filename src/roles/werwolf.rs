@@ -1,14 +1,16 @@
 use std::iter;
 
-use super::{Any, Data, Display, Group, Role, RoleBehavior, Team, async_trait};
+use super::{async_trait, Any, Data, Display, Group, Role, RoleBehavior, Team};
 
 use itertools::Itertools;
 use rand::prelude::{thread_rng, IteratorRandom};
 
-#[derive(Clone, Default)]
-pub struct Werwolf;
+pub static Werwolf: &'static dyn Role = &WerwolfImpl;
 
-impl Role for Werwolf {
+#[derive(Clone, Default)]
+struct WerwolfImpl;
+
+impl Role for WerwolfImpl {
     fn team(&self) -> Team {
         Team::Wolf
     }
@@ -18,7 +20,7 @@ impl Role for Werwolf {
     }
 
     fn build(&self) -> Box<dyn RoleBehavior> {
-        Box::new(Werwolf)
+        Box::new(WerwolfImpl)
     }
 
     fn name(&self) -> String {
@@ -26,20 +28,20 @@ impl Role for Werwolf {
     }
 }
 
-impl Display for Werwolf {
+impl Display for WerwolfImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Werwolf")
     }
 }
 
 #[async_trait]
-impl RoleBehavior for Werwolf {
+impl RoleBehavior for WerwolfImpl {
     async fn ask<'a>(&mut self, data: &Data<'a>, index: usize) {
         let mut others = data
             .roles
             .iter()
             .enumerate()
-            .filter(|&(i, &r)| (*r).type_id() == Werwolf.type_id() && i != index);
+            .filter(|&(i, &r)| (*r).type_id() == WerwolfImpl.type_id() && i != index);
 
         let content = match others.next() {
             Some((x, _)) => format!(

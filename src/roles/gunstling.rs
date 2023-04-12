@@ -2,14 +2,16 @@ use std::iter;
 
 use itertools::Itertools;
 
-use super::{Data, Display, Group, Role, RoleBehavior, Team, async_trait};
+use super::{async_trait, Data, Display, Group, Role, RoleBehavior, Team};
+
+pub static Gunstling: &'static dyn Role = &GunstlingImpl;
 
 #[derive(Clone, Default)]
-pub struct Gunstling;
+struct GunstlingImpl;
 
-impl Role for Gunstling {
+impl Role for GunstlingImpl {
     fn build(&self) -> Box<dyn RoleBehavior> {
-        Box::new(Gunstling)
+        Box::new(GunstlingImpl)
     }
 
     fn team(&self) -> Team {
@@ -26,7 +28,7 @@ impl Role for Gunstling {
 }
 
 #[async_trait]
-impl RoleBehavior for Gunstling {
+impl RoleBehavior for GunstlingImpl {
     async fn ask<'a>(&mut self, data: &Data<'a>, index: usize) {
         let mut wolves = data
             .roles
@@ -48,7 +50,7 @@ impl RoleBehavior for Gunstling {
     }
 }
 
-impl Display for Gunstling {
+impl Display for GunstlingImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Günstling")
     }

@@ -1,9 +1,11 @@
 use super::{async_trait, Data, Display, Group, Role, RoleBehavior, Team};
 
-#[derive(Clone)]
-pub struct Doppel;
+pub static Doppel: &'static dyn Role = &DoppelImpl;
 
-impl Role for Doppel {
+#[derive(Clone)]
+struct DoppelImpl;
+
+impl Role for DoppelImpl {
     fn build(&self) -> Box<dyn RoleBehavior> {
         Box::new(DoppelData { copied: None })
     }
@@ -21,7 +23,7 @@ impl Role for Doppel {
     }
 }
 
-impl Display for Doppel {
+impl Display for DoppelImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Doppelgängerin")
     }
