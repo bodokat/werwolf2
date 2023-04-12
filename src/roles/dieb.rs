@@ -4,7 +4,6 @@ use super::{async_trait, Data, Group, Role, RoleBehavior, Team};
 
 pub static Dieb: &'static dyn Role = &DiebImpl;
 
-#[derive(Clone, Default)]
 struct DiebImpl;
 
 impl Role for DiebImpl {
@@ -25,7 +24,6 @@ impl Role for DiebImpl {
     }
 }
 
-#[derive(Clone)]
 struct DiebData {
     to_steal: Option<usize>,
 }
@@ -59,7 +57,7 @@ impl RoleBehavior for DiebData {
     async fn after<'a>(&mut self, data: &Data<'a>, index: usize) {
         if let Some(to_steal) = self.to_steal {
             let name = data.players[to_steal].name.clone();
-            let new_role = data.roles[index].to_string();
+            let new_role = data.roles[index].name();
             data.players[index].say(format!("{name} war {new_role}"));
         }
     }

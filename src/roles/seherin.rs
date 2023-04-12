@@ -51,13 +51,15 @@ impl RoleBehavior for SeherinImpl {
             Some(u) => {
                 data.players[index].say(format!(
                     "{} hat die Rolle {}",
-                    data.players[u].name, data.roles[u]
+                    data.players[u].name,
+                    data.roles[u].name()
                 ));
             }
             None => {
                 data.players[index].say(format!(
                     "2 Rollen in der Mitte sind: {}, {}",
-                    data.extra_roles[0], data.extra_roles[1]
+                    data.extra_roles[0].name(),
+                    data.extra_roles[1].name()
                 ));
             }
         }

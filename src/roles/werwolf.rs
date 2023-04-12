@@ -56,7 +56,10 @@ impl RoleBehavior for WerwolfImpl {
                 .filter(|r| r.group() != Group::Wolf)
                 .choose(&mut thread_rng())
             {
-                Some(x) => format!("Du bist alleine. Eine Karte aus der Mitte ist: {x}"),
+                Some(x) => format!(
+                    "Du bist alleine. Eine Karte aus der Mitte ist: {}",
+                    x.name()
+                ),
                 None => "Du bist alleine. Es sind nur Werwölfe in der Mitte".to_string(),
             },
         };

@@ -26,7 +26,7 @@ impl Role for SchlafloseImpl {
 #[async_trait]
 impl RoleBehavior for SchlafloseImpl {
     async fn after<'a>(&mut self, data: &Data<'a>, index: usize) {
-        data.players[index].say(format!("Du bist jetzt {}", data.roles[index]));
+        data.players[index].say(format!("Du bist jetzt {}", data.roles[index].name()));
     }
 }
 

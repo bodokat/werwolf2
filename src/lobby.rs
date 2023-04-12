@@ -238,7 +238,7 @@ async fn handle_player_messages(
                         });
                     }
                 });
-            } //TODO
+            }
             message::ToServer::Kick { player: _ } => {} //TODO
         }
     };

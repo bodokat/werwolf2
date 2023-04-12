@@ -2,7 +2,6 @@ use super::{async_trait, Data, Display, Group, Role, RoleBehavior, Team};
 
 pub static Doppel: &'static dyn Role = &DoppelImpl;
 
-#[derive(Clone)]
 struct DoppelImpl;
 
 impl Role for DoppelImpl {
@@ -10,6 +9,7 @@ impl Role for DoppelImpl {
         Box::new(DoppelData { copied: None })
     }
 
+    //TODO: fix this
     fn team(&self) -> Team {
         Team::Dorf
     }
@@ -57,7 +57,7 @@ impl RoleBehavior for DoppelData {
             .await;
 
         let behavior = data.roles[to_copy].build();
-        data.players[index].say(format!("Du bist jetzt {}", data.roles[to_copy]));
+        data.players[index].say(format!("Du bist jetzt {}", data.roles[to_copy].name()));
         self.copied = Some((data.roles[to_copy], behavior));
     }
 
