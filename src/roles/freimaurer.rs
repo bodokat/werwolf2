@@ -1,7 +1,7 @@
 use itertools::Itertools;
 
 use super::{async_trait, Data, Display, Group, Role, RoleBehavior, Team};
-use std::any::Any;
+
 use std::iter;
 
 pub static Freimaurer: &'static dyn Role = &FreimaurerImpl;
@@ -31,6 +31,10 @@ impl Role for FreimaurerImpl {
     fn name(&self) -> String {
         "Freimaurer".into()
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 #[async_trait]
@@ -40,7 +44,7 @@ impl RoleBehavior for FreimaurerImpl {
             .roles
             .iter()
             .enumerate()
-            .filter(|&(_, &r)| (*r).type_id() == FreimaurerImpl.type_id());
+            .filter(|&(_, &r)| r.as_any().is::<FreimaurerImpl>());
 
         let content = match others.next() {
             Some((x, _)) => format!(

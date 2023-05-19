@@ -29,6 +29,10 @@ impl Role for UnruhestifterinImpl {
     fn name(&self) -> String {
         "Unruhestifterin".into()
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 #[derive(Clone)]

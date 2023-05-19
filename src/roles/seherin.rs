@@ -23,6 +23,10 @@ impl Role for SeherinImpl {
     fn name(&self) -> String {
         "Seherin".into()
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 #[async_trait]

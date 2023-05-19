@@ -21,6 +21,10 @@ impl Role for SchlafloseImpl {
     fn name(&self) -> String {
         "Schlaflose".into()
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 #[async_trait]

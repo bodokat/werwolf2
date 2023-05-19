@@ -22,6 +22,10 @@ impl Role for DiebImpl {
     fn name(&self) -> String {
         "Dieb".into()
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 struct DiebData {

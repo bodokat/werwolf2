@@ -44,7 +44,7 @@ pub enum Group {
     Wolf,
 }
 
-pub trait Role: Send + Sync + Any {
+pub trait Role: Send + Sync {
     fn build(&self) -> Box<dyn RoleBehavior>;
 
     fn team(&self) -> Team;
@@ -52,6 +52,8 @@ pub trait Role: Send + Sync + Any {
     fn group(&self) -> Group;
 
     fn name(&self) -> String;
+
+    fn as_any(&self) -> &dyn Any;
 }
 
 #[async_trait]

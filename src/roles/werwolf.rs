@@ -1,6 +1,6 @@
 use std::iter;
 
-use super::{async_trait, Any, Data, Display, Group, Role, RoleBehavior, Team};
+use super::{async_trait, Data, Display, Group, Role, RoleBehavior, Team};
 
 use itertools::Itertools;
 use rand::prelude::{thread_rng, IteratorRandom};
@@ -26,6 +26,10 @@ impl Role for WerwolfImpl {
     fn name(&self) -> String {
         "Werwolf".into()
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 impl Display for WerwolfImpl {
@@ -41,7 +45,7 @@ impl RoleBehavior for WerwolfImpl {
             .roles
             .iter()
             .enumerate()
-            .filter(|&(i, &r)| (*r).type_id() == WerwolfImpl.type_id() && i != index);
+            .filter(|&(i, &r)| r.group() == Group::Wolf && i != index);
 
         let content = match others.next() {
             Some((x, _)) => format!(

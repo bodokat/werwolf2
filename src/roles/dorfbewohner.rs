@@ -20,6 +20,10 @@ impl Role for DorfbewohnerImpl {
     fn name(&self) -> String {
         "Dorfbewohner".into()
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 #[async_trait]

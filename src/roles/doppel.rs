@@ -9,7 +9,6 @@ impl Role for DoppelImpl {
         Box::new(DoppelData { copied: None })
     }
 
-    //TODO: fix this
     fn team(&self) -> Team {
         Team::Dorf
     }
@@ -20,6 +19,10 @@ impl Role for DoppelImpl {
 
     fn name(&self) -> String {
         "Doppelgängerin".into()
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
