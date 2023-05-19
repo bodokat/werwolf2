@@ -1,10 +1,12 @@
+use std::iter::once;
+
 use crate::{
     lobby::{PlayerMessage, Settings},
     message,
 };
 use futures::{
     future::ready,
-    stream::{FuturesUnordered, StreamExt},
+    stream::{FuturesOrdered, FuturesUnordered, StreamExt},
 };
 use itertools::{repeat_n, Itertools};
 use rand::prelude::*;
@@ -21,6 +23,10 @@ pub async fn start(players: Vec<(&String, UnboundedSender<PlayerMessage>)>, sett
         .iter()
         .zip(data.roles.iter())
         .for_each(|(c, role)| c.say(format!("Deine Rolle ist: {}", role.name())));
+
+    data.players
+        .iter()
+        .for_each(|c| c.say("Die Abstimmung beginnt".into()));
 
     // --- Action
 
@@ -40,62 +46,46 @@ pub async fn start(players: Vec<(&String, UnboundedSender<PlayerMessage>)>, sett
             votes
                 .iter()
                 .enumerate()
-                .map(|(idx, votes)| format!("{}: {}", data.players[idx].name, votes))
+                .map(|(idx, &vote)| format!(
+                    "{}: {}",
+                    data.players[idx].name,
+                    match vote {
+                        Some(v) => data.players[v].name,
+                        None => "Skip",
+                    }
+                ))
                 .join("\n")
         );
         data.players.iter().for_each(|p| p.say(content.clone()));
     }
 
-    let mut skipped = false;
-    let voted_players =
-        votes
-            .iter()
-            .enumerate()
-            .fold(
-                (Vec::new(), 1_u32),
-                |(mut result, max), (idx, &votes)| match votes.cmp(&max) {
-                    std::cmp::Ordering::Less => {
-                        skipped = true;
-                        (result, max)
-                    }
-                    std::cmp::Ordering::Equal => {
-                        result.push(idx);
-                        (result, max)
-                    }
-                    std::cmp::Ordering::Greater => {
-                        skipped = true;
-                        (vec![idx], votes)
-                    }
-                },
-            );
-    let voted_players = if skipped { voted_players.0 } else { vec![] };
+    let killed_players = killed_players(&votes);
 
     {
-        let content = if voted_players.is_empty() {
+        let content = if killed_players.is_empty() {
             "Niemand ist gestorben".to_string()
-        } else if voted_players.len() == 1 {
+        } else if killed_players.len() == 1 {
             format!(
                 "{} ist gestorben",
-                data.players[voted_players[0]].name.clone()
+                data.players[killed_players[0]].name.clone()
             )
         } else {
             format!(
                 "{} sind gestorben",
-                voted_players
+                killed_players
                     .iter()
                     .map(|&idx| data.players[idx].name.clone())
                     .join(", ")
             )
         };
-        let content = &content;
-        data.players.iter().for_each(|p| p.say(content.to_string()));
+        data.players.iter().for_each(|p| p.say(content.clone()));
     }
 
     let has_werewolf = data.roles.iter().any(|role| role.group() == Group::Wolf);
 
     #[allow(clippy::collapsible_else_if)]
     let winning_team = if has_werewolf {
-        if voted_players
+        if killed_players
             .iter()
             .any(|&idx| data.roles[idx].group() == Group::Wolf)
         {
@@ -104,7 +94,7 @@ pub async fn start(players: Vec<(&String, UnboundedSender<PlayerMessage>)>, sett
             Team::Wolf
         }
     } else {
-        if voted_players.is_empty() {
+        if killed_players.is_empty() {
             Team::Dorf
         } else {
             Team::Wolf
@@ -142,26 +132,52 @@ pub async fn start(players: Vec<(&String, UnboundedSender<PlayerMessage>)>, sett
         .for_each(|p| p.say("-------------".into()));
 }
 
-async fn do_vote(data: &Data<'_>) -> Vec<u32> {
-    let players = &data.players;
-    let votes: Vec<u32> = data
-        .players
+fn killed_players(votes: &[Option<usize>]) -> Vec<usize> {
+    let total_votes = votes.iter().filter_map(Option::as_ref).fold(
+        vec![0_usize; votes.len()],
+        |mut votes, &v| {
+            votes[v] += 1;
+            votes
+        },
+    );
+    let Some(max_votes) = total_votes.iter().max() 
+    else {
+        return Vec::new();
+    };
+    let skipped = votes.iter().filter(|x| x.is_none()).count();
+    if skipped > *max_votes {
+        return Vec::new();
+    }
+    total_votes
         .iter()
-        .map(|player| {
-            player.choice(
-                "Wähle einen Mitspieler".into(),
-                (0..players.len())
-                    .map(|idx| players[idx].name.clone())
-                    .collect(),
-            )
+        .enumerate()
+        .filter(|&(_i, v)| v == max_votes)
+        .map(|(i, _v)| i)
+        .collect_vec()
+}
+
+async fn do_vote(data: &Data<'_>) -> Vec<Option<usize>> {
+    let options = (0..data.players.len())
+        .map(Some)
+        .chain(once(None))
+        .collect::<Vec<_>>();
+    let options_str = options
+        .iter()
+        .map(|&x| match x {
+            Some(i) => data.players[i].name.clone(),
+            None => "Skip".into(),
         })
-        .collect::<FuturesUnordered<_>>()
-        .fold(vec![0; data.roles.len()], |mut acc, x| {
-            acc[x] += 1;
-            ready(acc)
-        })
-        .await;
-    votes
+        .collect::<Vec<_>>();
+
+    let options_str = &options_str;
+
+    data.players
+        .iter()
+        .map(|player| player.choice("Wähle einen Mitspieler".into(), options_str.clone()))
+        .collect::<FuturesOrdered<_>>()
+        .map(|v| options[v])
+        .collect::<Vec<_>>()
+        .await
 }
 
 async fn actions(mut behaviors: Vec<Box<dyn RoleBehavior>>, data: &mut Data<'_>) {
