@@ -38,7 +38,7 @@ impl Server {
                     let lobbies = self.lobbies.clone();
                     let code2 = code.clone();
                     tokio::spawn(async move {
-                        let _ = remove_rx.await;
+                        _ = remove_rx.await;
                         println!("Removing lobby: {code2}");
                         lobbies.write().await.remove(&code2);
                     });

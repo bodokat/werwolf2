@@ -4,8 +4,6 @@ use axum::extract::ws::Message;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-// note: we use "Enum::Variant()" syntax so serde_json generates a sane representation
-
 #[derive(Serialize, Deserialize, Debug, TS, Clone)]
 #[ts(export)]
 #[serde(tag = "type")]
