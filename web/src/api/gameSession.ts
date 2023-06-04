@@ -98,7 +98,7 @@ export async function newLobby(): Promise<string> {
 
 const api_url: string = (
     import.meta.env.DEV ?
-        `localhost:3000/api` :
+        `localhost:8000/api` :
         `${location.hostname}/api`
 )
 

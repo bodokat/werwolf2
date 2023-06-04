@@ -4,9 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "run-p dev:server dev:web",
-    "dev:server": "cargo watch -i web -i bindings -x test -x run",
-    "dev:web": "vite",
+    "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "generate-api-types": "cargo test"
