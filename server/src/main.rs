@@ -4,6 +4,7 @@
 mod game;
 mod lobby;
 mod roles;
+mod server;
 mod utils;
 
 use std::{net::SocketAddr, path::Path};
@@ -17,7 +18,6 @@ use tower_http::{
 use tracing::Level;
 
 pub mod message;
-mod server;
 
 #[tokio::main]
 async fn main() {
@@ -27,9 +27,9 @@ async fn main() {
 
     let port = match std::env::var("PORT").map(|s| s.parse()) {
         Ok(Ok(port)) => port,
-        _ => 3000,
+        _ => 8000,
     };
-    let web_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("web/dist");
+    let web_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("static");
     let index_path = web_path.join("index.html");
 
     if !index_path.is_file() {

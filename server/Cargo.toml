@@ -1,16 +1,15 @@
 [package]
 authors = ["Bodokat <bod.kato@gmail.com>"]
-edition = "2018"
+edition = "2021"
 name = "werwolf"
 version = "0.1.0"
-default-run = "werwolf"
 
-# [[bin]]
-# name = "gen-ts"
-# path = "src/gen_ts.rs"
 
 [dependencies]
-tokio = { version = "1.6", features = ["full"] }
+shuttle-runtime = "0.17.0"
+shuttle-axum = "0.17.0"
+
+tokio = { version = "1.28.2", features = ["full"] }
 tokio-stream = "0.1"
 futures = "0.3"
 
@@ -28,3 +27,4 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 async-trait = "0.1"
 itertools = "0.10"
 rand = "0.8"
+shuttle-static-folder = "0.17.0"

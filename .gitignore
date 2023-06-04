@@ -1,4 +1,5 @@
-/target
+server/target
+server/static
 
 web/node_modules
 web/.yarn
