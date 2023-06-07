@@ -9,12 +9,7 @@ function isWelcomeMessage(msg: ToClient): msg is WelcomeMessage {
 }
 
 function parseMessage(msg: string): ToClient {
-    try {
-        return toClientSchema.parse(JSON.parse(msg))
-    } catch {
-        console.error(`error parsing message: ${msg}`)
-        throw new Error(`Unknown message: ${msg}`)
-    }
+    return toClientSchema.parse(JSON.parse(msg))
 }
 
 export class GameSession {
@@ -24,7 +19,7 @@ export class GameSession {
         let socket = new WebSocket(url)
         let messages = new Subject<ToClient>()
         let handler = ({ data }: MessageEvent) => {
-            return messages.next(parseMessage(data))
+            messages.next(parseMessage(data))
         }
         socket.addEventListener("message", handler)
         let initialMessage = await firstValueFrom(messages.pipe(filter(isWelcomeMessage)))

@@ -59,6 +59,7 @@ pub struct Player {
 pub struct LobbySettings {
     pub available_roles: Vec<String>,
     pub roles: Vec<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")] // required for ts to work
     pub admin: Option<String>,
 }
 
