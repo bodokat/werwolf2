@@ -1,5 +1,4 @@
 server/target
-server/static
 
 web/node_modules
 web/.yarn
@@ -11,7 +10,7 @@ web/.vscode
 web/coverage
 
 # production
-web/build
+web/dist
 
 # misc
 web/.env.local

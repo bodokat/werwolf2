@@ -7,11 +7,14 @@ types:
 
 build:
     cd web && yarn build
-    podman build .
+    podman build -t werwolf .
 
+deploy: build
+    podman push localhost/werwolf docker://registry.fly.io/werwolf:latest
+    flyctl deploy -i registry.fly.io/werwolf:latest
 
 dev-server:
-    cd server && cargo shuttle run
+    cd server && cargo run
 
 dev-web:
     cd web && yarn dev
