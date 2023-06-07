@@ -29,7 +29,7 @@ async fn main() {
         Ok(Ok(port)) => port,
         _ => 8000,
     };
-    let web_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("static");
+    let web_path = Path::new("./static");
     let index_path = web_path.join("index.html");
 
     if !index_path.is_file() {
