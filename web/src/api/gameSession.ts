@@ -1,6 +1,5 @@
-import { LobbySettings } from "../../../bindings/LobbySettings";
-import { ToServer } from "../../../bindings/ToServer";
-import { ToClient } from "../../../bindings/ToClient";
+import { LobbySettings, ToClient, ToServer } from "../message";
+import { toClientSchema } from "../message-zod";
 import { BehaviorSubject, Observable, Subject, filter, firstValueFrom, map, scan, tap } from "rxjs";
 
 type WelcomeMessage = ToClient & { type: "welcome" }
@@ -11,11 +10,10 @@ function isWelcomeMessage(msg: ToClient): msg is WelcomeMessage {
 
 function parseMessage(msg: string): ToClient {
     try {
-        return JSON.parse(msg)
+        return toClientSchema.parse(JSON.parse(msg))
     } catch {
         console.error(`error parsing message: ${msg}`)
         throw new Error(`Unknown message: ${msg}`)
-
     }
 }
 
@@ -68,13 +66,13 @@ function stateReducer(state: GameState, message: ToClient): GameState {
         case "left":
             new_state.players.push(message.player.name)
             return new_state
-        case "nameaccepted":
+        case "name_accepted":
             new_state.me = message.name
             return new_state
-        case "namerejected":
+        case "name_rejected":
             return new_state
-        case "newsettings":
-            new_state.settings = message
+        case "new_settings":
+            new_state.settings = message.settings
             return new_state
         case "started":
             new_state.started = true

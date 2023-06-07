@@ -16,6 +16,7 @@ const router = createBrowserRouter([
     loader: (({ params: { lobby } }) => {
       console.log("loading")
       if (typeof lobby == "string") return GameSession.join(lobby)
+      else return null
     }),
     element: <Game />
 

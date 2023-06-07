@@ -77,7 +77,7 @@ function NameInput({ session, state }: { session: GameSession, state: GameState 
                     }
                 }
                 let subscription = session.messages.subscribe(m => {
-                    if (m.type === "namerejected") {
+                    if (m.type === "name_rejected") {
                         console.log("test")
                         notifications.show({
                             title: "Name Taken",

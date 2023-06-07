@@ -1,5 +1,5 @@
 import { Button, Group, List, Paper, Stack, Text } from "@mantine/core";
-import { ToClient } from "../../../bindings/ToClient";
+import { ToClient } from "../message";
 import { sessionContext, stateContext } from "./index";
 import React, { Fragment, ReactElement, useContext, useState } from "react";
 
@@ -17,7 +17,7 @@ function RenderMessage({ message }: { message: ToClient }): React.ReactElement |
         case "welcome":
             console.warn("received initial message again")
             return null
-        case "newsettings":
+        case "new_settings":
             return null
         case "joined":
             return <Paper>{message.player.name} joined</Paper>
@@ -27,9 +27,9 @@ function RenderMessage({ message }: { message: ToClient }): React.ReactElement |
             return <Paper>Game started</Paper>
         case "ended":
             return <Paper>Game ended</Paper>
-        case "nameaccepted":
+        case "name_accepted":
             return null
-        case "namerejected":
+        case "name_rejected":
             return null
         case "text":
             return <Paper>{message.text}</Paper>

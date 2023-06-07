@@ -130,9 +130,9 @@ impl LobbyInner {
                                             drop(settings);
                                             let mut lobby_settings = this.settings.write().await;
                                             lobby_settings.admin = Some(name.clone());
-                                            let msg = ToClient::NewSettings(
-                                                lobby_settings.clone().into(),
-                                            );
+                                            let msg = ToClient::NewSettings {
+                                                settings: lobby_settings.clone().into(),
+                                            };
                                             drop(lobby_settings);
                                             this.players.read().await.values().for_each(|s| {
                                                 s.send(PlayerMessage::Other(msg.clone())).unwrap();
@@ -231,9 +231,9 @@ async fn handle_player_messages(
                         }
                         let settings = lobby.settings.read().await.clone();
                         lobby.players.read().await.values().for_each(|s| {
-                            s.send(PlayerMessage::Other(message::ToClient::NewSettings(
-                                settings.clone().into(),
-                            )))
+                            s.send(PlayerMessage::Other(message::ToClient::NewSettings {
+                                settings: settings.clone().into(),
+                            }))
                             .unwrap();
                         });
                     }

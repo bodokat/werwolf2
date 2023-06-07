@@ -3,7 +3,7 @@ import { sessionContext, stateContext } from ".";
 import React from "react";
 import { ActionIcon, Button, Group, NumberInput, Stack, rem } from "@mantine/core";
 import { Plus, Minus } from "tabler-icons-react";
-import { ToServer } from "../../../bindings/ToServer";
+import { ToServer } from "../message";
 
 export function Settings() {
     let state = useContext(stateContext)!
@@ -30,7 +30,7 @@ export function Settings() {
                                     if (state.settings.roles[index] > 0) {
                                         state.settings.roles[index] -= 1
                                         session.send({
-                                            type: "changeroles",
+                                            type: "change_roles",
                                             new_roles: state.settings.roles
                                         })
                                     }
@@ -43,7 +43,7 @@ export function Settings() {
                                 if (val != "") {
                                     state.settings.roles[index] = val
                                     session.send({
-                                        type: "changeroles",
+                                        type: "change_roles",
                                         new_roles: state.settings.roles
                                     })
                                 }
@@ -55,7 +55,7 @@ export function Settings() {
                                 onClick={() => {
                                     state.settings.roles[index] += 1
                                     session.send({
-                                        type: "changeroles",
+                                        type: "change_roles",
                                         new_roles: state.settings.roles
                                     })
                                 }}

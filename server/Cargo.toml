@@ -6,9 +6,6 @@ version = "0.1.0"
 
 
 [dependencies]
-shuttle-runtime = "0.17.0"
-shuttle-axum = "0.17.0"
-
 tokio = { version = "1.28.2", features = ["full"] }
 tokio-stream = "0.1"
 futures = "0.3"
@@ -19,7 +16,6 @@ tower-http = { version = "0.4.0", features = ["fs", "trace", "cors"] }
 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-ts-rs = "6.2"
 
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -28,3 +24,4 @@ async-trait = "0.1"
 itertools = "0.10"
 rand = "0.8"
 shuttle-static-folder = "0.17.0"
+tsync = "1"

@@ -2,18 +2,18 @@ use std::convert::TryFrom;
 
 use axum::extract::ws::Message;
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
-#[derive(Serialize, Deserialize, Debug, TS, Clone)]
-#[ts(export)]
-#[serde(tag = "type")]
-#[serde(rename_all = "lowercase")]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[tsync::tsync]
 pub enum ToClient {
     Welcome {
         settings: LobbySettings,
         players: Vec<String>,
     },
-    NewSettings(LobbySettings),
+    NewSettings {
+        settings: LobbySettings,
+    },
     Joined {
         player: Player,
     },
@@ -37,10 +37,9 @@ pub enum ToClient {
     Ended,
 }
 
-#[derive(Serialize, Deserialize, Debug, TS)]
-#[ts(export)]
-#[serde(tag = "type")]
-#[serde(rename_all = "lowercase")]
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[tsync::tsync]
 pub enum ToServer {
     Start,
     Response { id: usize, choice: usize },
@@ -49,14 +48,14 @@ pub enum ToServer {
     ChangeRoles { new_roles: Vec<usize> },
 }
 
-#[derive(Serialize, Deserialize, Debug, TS, Clone)]
-#[ts(export)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[tsync::tsync]
 pub struct Player {
     pub name: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, TS, Clone)]
-#[ts(export)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[tsync::tsync]
 pub struct LobbySettings {
     pub available_roles: Vec<String>,
     pub roles: Vec<usize>,
