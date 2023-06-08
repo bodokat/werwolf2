@@ -29,11 +29,16 @@ async fn main() {
         Ok(Ok(port)) => port,
         _ => 8000,
     };
-    let web_path = Path::new("./static");
+    let static_path = option_env!("STATIC_PATH").unwrap_or_else(|| {
+        tracing::error!("no static path given");
+        "static"
+    });
+    let web_path = Path::new(static_path);
     let index_path = web_path.join("index.html");
 
     if !index_path.is_file() {
         tracing::error!("index.html not found");
+        tracing::error!("path is {static_path}");
     }
 
     let app = Router::new()
