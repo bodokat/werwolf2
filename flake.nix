@@ -19,22 +19,25 @@
       };
 
       frontend = 
-       pkgs.mkYarnPackage {
+       pkgs.mkYarnPackage rec {
           pname = "werwolf-frontend";
+          version = "0.1.0";
           src = ./web;
+          packageJson = "${src}/package.json";
+          yarnLock = "${src}/yarn.lock";
 
-          configurePhase = ''
-            cp -r $node_modules node_modules
-            chmod -R 755 node_modules;
-          '';
 
           buildPhase = ''
-            yarn build
+            export HOME=$TMP
+            yarn --offline build
           '';
 
-          installPhase = ''
-            cp -r dist/  $out
-          '';
+          installPhase = 
+          let pkgName = (pkgs.lib.importJSON "${src}/package.json").name;
+          in 
+            ''
+              cp -r deps/${pkgName}/dist/ $out
+            '';
 
           # do not attempt to build distribution bundles
           distPhase = ''
@@ -61,15 +64,15 @@
             default = docker;
             inherit backend frontend;
 
-            docker = pkgs.dockerTools.buildImage {
+            docker = pkgs.dockerTools.streamLayeredImage {
               name = "werwolf";
               tag = "latest";
-              copyToRoot = [ backend frontend ];
               config = {
                 Cmd = [ "${backend}/bin/werwolf" ];
               };
           };
           };
+          
         }
     );
       
