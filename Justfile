@@ -6,8 +6,7 @@ types:
     cd web && yarn generate-zod
 
 build:
-    nix build -o Dockerimage
-    podman load -i Dockerimage
+    nix build && ./result | podman load
 
 deploy: build
     podman push localhost/werwolf docker://registry.fly.io/werwolf:latest
